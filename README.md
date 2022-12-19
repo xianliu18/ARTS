@@ -1,3 +1,4 @@
+### 日常记录
 A: Algorithm example which I learn on leetcode;<br/>
 R: Review an English blog or essay;<br/>
 T: a Tip;<br/>
@@ -8,7 +9,3 @@ This is a learing project initiated by <kbd>[Chen Hao](https://weibo.com/haoel?i
 
 Email:isliuxian@163.com
 
-
-Others worth to learn:
-- [zouyingjie](https://github.com/zouyingjie/arts)
-- [ziwenhan](https://ziwenhan.github.io/)
