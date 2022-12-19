@@ -1,7 +1,8 @@
 ### ThreadPoolExecutor 深度解读
 
 ### 1，类 ThreadPoolExecutor 继承关系
-[ThreadPoolExecutor 类继承图](https://github.com/xianliu18/ARTS/tree/master/jvm/threadpool/images/ThreadPoolExecutor 类继承图.jpeg)
+
+![ThreadPoolExecutor 类继承图](https://github.com/xianliu18/ARTS/tree/master/jvm/threadpool/images/ThreadPoolExecutor类继承图.jpeg)
 
 - 接口 `Executor`：
   - 将任务提交和任务执行进行解耦。
@@ -60,7 +61,7 @@ public ThreadPoolExecutor(int corePoolSize,
   - 缓冲到队列中等待线程执行；
   - 拒绝该任务
 
-[ThreadPoolExecutor 任务调度流程](https://github.com/xianliu18/ARTS/tree/master/jvm/threadpool/images/任务调度流程.png)
+![ThreadPoolExecutor 任务调度流程](https://github.com/xianliu18/ARTS/tree/master/jvm/threadpool/images/任务调度流程.png)
 
 ```java
 // 执行任务的方法
@@ -92,7 +93,7 @@ public void execute(Runnable command) {
 ```
 
 #### 2.1 线程池运行状态
-[线程池运行状态](https://github.com/xianliu18/ARTS/tree/master/jvm/threadpool/images/线程池状态.png)
+![线程池运行状态](https://github.com/xianliu18/ARTS/tree/master/jvm/threadpool/images/线程池状态.png)
 
 - `RUNNING`：可以接收新的任务并且处理队列中的任务；
 - `SHUTDOWN`：不再接受新的任务，但是可以处理队列中的任务；
