@@ -286,7 +286,7 @@ int main()
 - 普通变量的值是实际的值；
 - 指针变量的值是具有实际值的变量的地址；
 
-![指针变量]()
+![指针变量](https://github.com/xianliu18/ARTS/tree/master/C%26C%2B%2B/images/指针变量.png)
 
 - 单目运算符`*`：用来访问指针的值所表示的地址上的变量；
 - `swap_demo.c`
@@ -416,7 +416,7 @@ int main()
   - `int a[]` 等同于 `int * const a`
 
 #### 8.5 指针与 const
-![指针与 const]()
+![指针与 const](https://github.com/xianliu18/ARTS/tree/master/C%26C%2B%2B/images/指针与const.png)
 
 - 指针是 `const`:
   - 表示一旦得到了某个变量的地址，不能再指向其他变量。
