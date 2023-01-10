@@ -209,7 +209,7 @@ hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-3.2.3.jar wordcount 
 
 #### 2.1 HDFS 组成
 
-![hdfs架构](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/hdfs架构.png)
+![hdfs架构](../images/hadoop/hdfs架构.png)
 
 - **NameNode(nn)**：存储文件的**元数据**，如文件名，文件目录结构，文件属性（生成时间、副本数、文件权限），以及每个文件的块列表和块所在的 DataNode 等；处理客户端读写请求；
 - **DataNode(dn)**：在本地文件系统存储文件块数据，以及块数据的校验和；执行数据块的读写操作；
@@ -241,7 +241,7 @@ hadoop fs -get /bigdata/test.log ./test0103.log
 #### 2.3 HDFS 读写流程
 
 1，写数据流程
-![hdfs 写入流程](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/hdfs写入流程.png)
+![hdfs 写入流程](../images/hadoop/hdfs写入流程.png)
 
 **流程说明：**
 - Client 发送文件上传请求，通过 RPC 与 NameNode 建立通讯，NameNode 检查目标文件是否存在，目录是否存在，返回是否可以上传；
@@ -253,7 +253,7 @@ hadoop fs -get /bigdata/test.log ./test0103.log
 - 当一个 block 传输完成之后，Client 再次请求 NameNode 上传第二个 block 到服务器。
 
 2，读数据流程
-![读数据流程](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/hdfs读取流程.png)
+![读数据流程](../images/hadoop/hdfs读取流程.png)
 
 **流程说明：**
 - Client 向 NameNode 发送 RPC 请求，来确定请求文件 block 所在位置；
@@ -272,7 +272,7 @@ hadoop fs -get /bigdata/test.log ./test0103.log
 - Edits：记录客户端对 HDFS 的添加、删除、重命名、追加等操作；
 - FsImage 和 Edits 主要用于在集群启动时，将集群的状态恢复到关闭前的状态；换句话说，集群启动时，会将 FsImage、Edits 加载到内存中，进行合并，合并后恢复完成。
 
-![FsImage 和 Edits 关系](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/FsImages和Edits关系.png)
+![FsImage 和 Edits 关系](../images/hadoop/FsImages和Edits关系.png)
 
 ### 3. MapReduce
 #### 3.1 概述
@@ -479,7 +479,7 @@ public class MyBeanSerial implements Writable {
 </details>
 
 #### 3.4 MapReduce 框架原理
-![MapReduce 框架原理](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/mapreduce框架原理.png)
+![MapReduce 框架原理](../images/hadoop/mapreduce框架原理.png)
 
 - MapTask 的并行度决定 Map 阶段的任务处理并发度，进而影响到整个 Job 的处理速度；
 - MapTask 并行度决定机制：
@@ -505,7 +505,7 @@ public class MyBeanSerial implements Writable {
   - `CombineTextInputFormat`：用于**小文件过多**的场景，它可以将多个小文件从逻辑上规划到一个切片中，这样，多个小文件就可以交给一个 MapTask 处理。
   - **虚拟存储切片最大值设置**：`CombineTextInputFormat.setMaxInputSplitSize(job, 4194304); // 4M`；
   
-![CombileTextInputFormat 切片机制](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/CombileTextInputFormat切片机制.png)
+![CombileTextInputFormat 切片机制](../images/hadoop/CombileTextInputFormat切片机制.png)
 
 1，说明：虚拟存储过程和切片过程
 - 虚拟存储过程：
@@ -547,13 +547,13 @@ CombineTextInputFormat.setMaxInputSplitSize(job, 4194304);
 <!--
 参考链接：https://www.bilibili.com/video/BV1Qp4y1n7EN?p=94
 -->
-![MapReduce 详细工作流程](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/MapReduce工作流程.png)
-![MapReduce 详细工作流程 2](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/MapReduce工作流程2.png)
+![MapReduce 详细工作流程](../images/hadoop/MapReduce工作流程.png)
+![MapReduce 详细工作流程 2](../images/hadoop/MapReduce工作流程2.png)
 
 #### 3.4.2 Shuffle 机制
 - Map 方法之后，Reduce 方法之前的数据处理过程称之为 Shuffle。
 
-![Shuffle 机制]([$$$](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/Shuffle机制.png))
+![Shuffle 机制]([$$$](../images/hadoop/Shuffle机制.png))
 
 #### 3.4.3 Partition(分区)
 - 默认分区方式，是根据 key 的 HashCode 对 ReduceTasks 个数取模得到的；
@@ -696,7 +696,7 @@ public class ChatRecordWriter extends RecordWriter<Text, NullWritable> {
 </details>
 
 #### 3.6 MapTask 工作机制
-![MapTask 工作机制](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/MapTask工作机制.png)
+![MapTask 工作机制](../images/hadoop/MapTask工作机制.png)
 
 <!--
 MapTask 工作机制：https://www.bilibili.com/video/BV1Qp4y1n7EN/?p=109
@@ -716,7 +716,7 @@ MapTask 工作机制：https://www.bilibili.com/video/BV1Qp4y1n7EN/?p=109
 	- 让每个 MapTask 最终只生成一个数据文件，可以避免同时打开大量文件和同时读取大量小文件产生的随机读取带来的开销。
 
 #### 3.7 ReduceTask 工作机制
-![ReduceTask 工作机制](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/ReduceTask工作机制.png)
+![ReduceTask 工作机制](../images/hadoop/ReduceTask工作机制.png)
 
 <!--
 ReduceTask 工作机制：https://www.bilibili.com/video/BV1Qp4y1n7EN?p=110
@@ -1081,7 +1081,7 @@ conf.setClass("mapreduce.map.output.compress.codec", BZip2Codec.class, Compressi
   - **Application Master**：负责单个任务的资源管理和任务监控；
   - **Container**：任务运行的容器，里面封装了任务运行所需要的资源，如内存、CPU、磁盘、网络等；
 
-![Yarn 架构](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/yarn_architecture.gif)
+![Yarn 架构](../images/hadoop/yarn_architecture.gif)
 
 - **Resource Manager**：
   - 处理客户端请求；
@@ -1097,7 +1097,7 @@ conf.setClass("mapreduce.map.output.compress.codec", BZip2Codec.class, Compressi
   - 任务的监控与容错；
 
 #### 5.1 Yarn 工作机制
-![Yarn 工作机制](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/yarn工作机制.png)
+![Yarn 工作机制](../images/hadoop/yarn工作机制.png)
 
 **详细说明：**
 <!--
@@ -1122,7 +1122,7 @@ https://www.bilibili.com/video/BV1Qp4y1n7EN?p=127
 #### 5.2  作业提交全过程
 - HDFS、YARN、MapReduce 三者关系
 
-![HDFS、YARN、MapReduce 三者关系](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/HDFS_YARN_MapReduce三者关系.png)
+![HDFS、YARN、MapReduce 三者关系](../images/hadoop/HDFS_YARN_MapReduce三者关系.png)
 
 #### 5.3 Yarn 调度器和调度算法
 - Hadoop 作业调度器主要有三种：FIFO、容量(Capacity Scheduler)和公平(Fair Scheduler)；Hadoop3.1.3 默认的资源调度器是 Capacity Scheduler；
@@ -1146,7 +1146,7 @@ https://www.bilibili.com/video/BV1Qp4y1n7EN?p=127
   - 支持多用户共享集群和多应用程序同时运行；
   - 为了防止同一个用户的作业独占队列中的资源，该调度器会对同一用户提交的作业所占资源量进行限定；
 
-![yarn 容量调度](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/yarn_容量调度.png)
+![yarn 容量调度](../images/hadoop/yarn_容量调度.png)
 
 #### 2.1 容量调度器资源分配算法
 1）队列资源分配：
@@ -1159,7 +1159,7 @@ https://www.bilibili.com/video/BV1Qp4y1n7EN?p=127
     - 任务和数据在同一节点；
     - 任务和数据在同一机架；
     - 任务和数据不在同一节点也不在同一机架；
-![yarn 资源分配算法](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/yarn_容量调度器资源分配.png)
+![yarn 资源分配算法](../images/hadoop/yarn_容量调度器资源分配.png)
 
 #### 3，公平调度器
 - Fair Scheduler 是 Facebook 开发的多用户调度器；
@@ -1178,7 +1178,7 @@ https://www.bilibili.com/video/BV1Qp4y1n7EN?p=127
     - 容量调度器：FIFO、DRF
     - 公平调度器：FIFO、FAIR、DRF
 
-![公平调度器特点](https://github.com/xianliu18/ARTS/tree/master/big_data/images/hadoop/yarn_公平调度器.png)
+![公平调度器特点](../images/hadoop/yarn_公平调度器.png)
 
 #### 5.4 Yarn 常用命令
 ```sh

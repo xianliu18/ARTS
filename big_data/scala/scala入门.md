@@ -85,7 +85,7 @@ object Test_io {
 - `Null` 是所有引用类型（`AnyRef`）的子类
 - `Nothing` 是所有数据类型的子类
 
-![Scala类关系继承图](https://github.com/xianliu18/ARTS/tree/master/big_data/images/Scala数据类型继承关系.png)
+![Scala类关系继承图](../images/Scala数据类型继承关系.png)
 
 - 整数类型
   - `Byte`、`Short`、`Int`、`Long`
@@ -619,7 +619,7 @@ object Test extends App {
 ```
 
 #### 6.5 特质叠加
-![菱形继承](https://github.com/xianliu18/ARTS/tree/master/big_data/images/菱形继承.png)
+![菱形继承](../images/菱形继承.png)
 
 - “菱形继承”
 - 当一个类混入多个特质的时候，Scala 会对所有的特质及父特质按照一定的顺序进行排序。

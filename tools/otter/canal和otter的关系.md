@@ -1,6 +1,6 @@
 ### Canal 和 Otter 的关系
 ### 1. MySQL 主从复制实现
-![MySQL 主从复制实现](https://github.com/xianliu18/ARTS/tree/master/tools/otter/images/mysql主从复制原理.jpeg)
+![MySQL 主从复制实现](./images/mysql主从复制原理.jpeg)
 
 从图中可以看出，主从复制分为三步：
 - master 将改变的记录到 `binlog`；
@@ -8,7 +8,7 @@
 - slave 重做中继日志中的事件，将改变反映在自己的数据中。
 
 ### 2. Canal 工作原理
-![Canal 原理](https://github.com/xianliu18/ARTS/tree/master/tools/otter/images/canal原理.png)
+![Canal 原理](./images/canal原理.png)
 
 Canal 主要是基于 MySQL 数据库增量日志解析，提供增量数据订阅和消费。
 工作原理：
@@ -17,7 +17,7 @@ Canal 主要是基于 MySQL 数据库增量日志解析，提供增量数据订�
 	- canal 解析 binlog；
 
 ### 3. Otter 工作原理
-![Otter 工作原理](https://github.com/xianliu18/ARTS/tree/master/tools/otter/images/Otter工作原理.jpeg)
+![Otter 工作原理](./images/Otter工作原理.jpeg)
 
 原理描述：
 1，基于 Canal 开源产品，获取数据库增量日志数据；
@@ -27,10 +27,10 @@ Canal 主要是基于 MySQL 数据库增量日志解析，提供增量数据订�
 3，基于 zookeeper，解决分布式状态调度，允许多个 node 节点之间协同工作。
 
 #### 3.1 otter 的 S/E/T/L stage 阶段模型
-![SETL 阶段模型](https://github.com/xianliu18/ARTS/tree/master/tools/otter/images/SETL阶段模型.png)
+![SETL 阶段模型](./images/SETL阶段模型.png)
 
 ### 4. Canal 和 Otter 区别
-![canal 和 otter 类比图](https://github.com/xianliu18/ARTS/tree/master/tools/otter/images/canal和otter类比图.jpeg)
+![canal 和 otter 类比图](./images/canal和otter类比图.jpeg)
 
 基于 canal & otter 的复制技术和 mysql 复制类似，具有类比性：
 1，Canal 对应于 I/O thread，接收 Master Binary Log；

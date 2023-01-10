@@ -36,7 +36,7 @@
 ### 2. Drools
 - KIE(Knowledge Is Everything)是一个综合项目。包括 Drools、jBPM、OptaPlanner、Business Central、UberFire。
 
-![kie组件](https://github.com/xianliu18/ARTS/tree/master/tools/drools/images/kie组件.png)
+![kie组件](./images/kie组件.png)
 
 #### 2.1 Drools 介绍
 - Drools 的基本功能是将传入的数据或事实与规则的条件进行匹配，并确定是否以及如何执行规则。
@@ -47,7 +47,7 @@
   - `Working Memory`: 用于存放 `Facts` 数据；
   - `Agenda`: 存放激活成功的规则；
 
-![Drools组件](https://github.com/xianliu18/ARTS/tree/master/tools/drools/images/Drools组件.png)
+![Drools组件](./images/Drools组件.png)
 
 #### 2.2 Drools 规则文件语法
 - 主要在`.drl`文件中定义业务规则，关键字包含：`package`、`import`、`function`、`global`、`query`、`rule...end`等
