@@ -9,7 +9,7 @@
 	- 执行程序运行在 Yarn 上；
 
 #### 1.1 Hive 架构
-![Hive 架构](https://github.com/xianliu18/ARTS/tree/master/big_data/images/02hive/hive_architecture.png)
+![Hive 架构](../images/02hive/hive_architecture.png)
 
 ![Hive 架构 2](https://github.com/xianliu18/ARTS/tree/master/big_data/images/02hive/hive_architecture2.png)
 
