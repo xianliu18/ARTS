@@ -11,7 +11,7 @@
 #### 1.1 Hive 架构
 ![Hive 架构](../images/02hive/hive_architecture.png)
 
-![Hive 架构 2](https://github.com/xianliu18/ARTS/tree/master/big_data/images/02hive/hive_architecture2.png)
+![Hive 架构 2](../images/02hive/hive_architecture2.png)
 
 #### 各模块说明
 1）元数据：Metastore
@@ -97,7 +97,7 @@ bin/schematool -dbType derby -initSchema
   - 若启用，则 Hiveserver2 会模拟成客户端 A、客户端 B、客户端 C 的登录用户去访问 Hadoop 集群数据；
   - 若未启用，则会直接使用启动 Hadoop 集群的用户访问集群内数据；
 
-![hiveserver2 作用](https://github.com/xianliu18/ARTS/tree/master/big_data/images/02hive/hiveserver2作用.png)
+![hiveserver2 作用](../images/02hive/hiveserver2作用.png)
 
 #### 1.4.2 Hiveserver2 部署
 1）Hadoop 端配置
@@ -176,9 +176,9 @@ abc
 - Hive 的 metastore 服务的作用是为 Hive CLI 或者 Hiveserver2 提供元数据访问接口；
 - metastore 有两种运行模式，分别为嵌入式模式和独立服务模式：
 
-![metastore 嵌入式模式](https://github.com/xianliu18/ARTS/tree/master/big_data/images/02hive/hive_metastore嵌入.png)
+![metastore 嵌入式模式](../images/02hive/hive_metastore嵌入.png)
 
-![metastore 独立模式](https://github.com/xianliu18/ARTS/tree/master/big_data/images/02hive/hive_metastore独立.png)
+![metastore 独立模式](../images/02hive/hive_metastore独立.png)
 
 #### 嵌入式模式缺点：
 - 嵌入式模式下，每个 Hive CLI 都需要直接连接源数据库，当 Hive CLI 较多时，数据库压力会比较大；
@@ -841,11 +841,11 @@ load data local inpath '/home/Documents/datas/student.txt' into table stu_buck;
 - `ORC(Optimized Row Columnar)`：是一种**列式存储**的文件格式，ORC 文件能够提高 Hive 读写数据和处理数据的性能；
 - 行存储与列存储
 
-![列存储](https://github.com/xianliu18/ARTS/tree/master/big_data/images/02hive/hive_列存储.png)
+![列存储](../images/02hive/hive_列存储.png)
 
 - ORC 文件基本格式
 
-![ORC 文件基本格式](https://github.com/xianliu18/ARTS/tree/master/big_data/images/02hive/hive_orc文件格式.png)
+![ORC 文件基本格式](../images/02hive/hive_orc文件格式.png)
 
 <details>
 <summary>ORC 建表语句</summary>
@@ -868,7 +868,7 @@ tblproperties(property_name=property_value, ...);
 #### 5.2 Parquet 文件
 - `Parquet`：也是一个列式存储的文件格式；
 
-![Parquet 文件格式](https://github.com/xianliu18/ARTS/tree/master/big_data/images/02hive/hive_parquet文件格式.png)
+![Parquet 文件格式](../images/02hive/hive_parquet文件格式.png)
 
 <details>
 <summary>Parquet 建表语句</summary>
@@ -1011,25 +1011,25 @@ set hive.map.aggr.hash.force.flush.memory.threshold=0.9
 - Common Join 是 Hive 中最稳定的 join 算法；其通过一个 MapReduce Job 完成一个 join 操作。Map 端负责读取 join 操作所需表的数据，并按照关联字段进行分区，通过 shuffle，将其发送到 Reduce 端，相同 key 的数据在 Reduce 端完成最终的 Join 操作。
 - 一个 SQL 语句中的**相邻**的且**关联字段相同**的多个 join 操作可以合并为一个 Common Join 任务；
 
-![Common Join](https://github.com/xianliu18/ARTS/tree/master/big_data/images/02hive/hive_common_join.png)
+![Common Join](../images/02hive/hive_common_join.png)
 
 #### Map Join
 - Map Join 算法可以通过两个只有 map 阶段的 Job 完成一个 join 操作。其适用场景为**大表 join 小表**。若某个 join 操作满足要求，则第一个 Job 会读取小表数据，将其制作为 hash table，并上传至 Hadoop 分布式缓存(本质上是上传至 HDFS)。第二个 Job 会先从分布式缓存中读取小表数据，并缓存在 Map Task 的内存中，然后扫描大表数据，这样在 map 端即可完成关联操作。
 
-![Map Join](https://github.com/xianliu18/ARTS/tree/master/big_data/images/02hive/hive_map_join.jpeg)
+![Map Join](../images/02hive/hive_map_join.jpeg)
 
 #### Bucket Map Join
 - Bucket Map Join 是对 Map Join 算法的改进，其打破了 Map Join 只适用于大表 Join 小表的限制，可用于**大表 join 大表**的场景。
 - Bucket Map Join 的核心思想是：若能保证参与 join 的表均为分桶表，且关联字段为分桶字段，且其中一张表的分桶数量是另外一张表分桶数量的整数倍，就能保证参与 join 的两张表的分桶之间具有明确的关联关系，所以就可以在两表的分桶间进行 Map Join 操作了。这样一来，第二个 Job 的 Map 端就无需再缓存小表的全表数据了，而只需缓存其所需的分桶即可。
 
-![bucket map join](https://github.com/xianliu18/ARTS/tree/master/big_data/images/02hive/hive_bucket_map_join.png)
+![bucket map join](../images/02hive/hive_bucket_map_join.png)
 
 #### Sort Merge Bucket Map Join
 - Sort Merge Bucket Map Join(简称 SMB Map Join)基于 Bucket Map Join。SMB Map Join 要求，参与 join 的表均为分桶表，且需保证分桶内的数据是有序的，且**分桶字段、排序字段和关联字段**为相同字段，且其中一张表的分桶数量是另一张表分桶数量的整数倍。
 - SMB Map Join 同 Bucket Join 一样，同样是利用两表各分桶之间的关联关系，在分桶之间进行 join 操作，不同的是，分桶之间的 join 操作的实现原理。Bucket Map Join，两个分桶之间的 join 实现原理为 **Hash Join 算法**；而 SMB Map Join，两个分桶之间的 join 实现原理为 **Sort Merge Join 算法**。
 - Hash Join 和 Sort Merge Join 均为关系型数据库中常见的 Join 实现算法。Hash Join 的原理相对简单，就是对参与 join 的一张表构建 hash table，然后扫描另一张表，然后进行逐行匹配。Sort Merge Join 需要在两张按照关联字段排好序的表中进行，其原理如图：
 
-![Sort Merge Bucket Map Join](https://github.com/xianliu18/ARTS/tree/master/big_data/images/02hive/hive_bucket_sort_join.png)
+![Sort Merge Bucket Map Join](../images/02hive/hive_bucket_sort_join.png)
 
 #### 6.6.1 Map Join 优化
 - Map Join 有两种触发优化的方式，一种是用户在 SQL 语句中增加 hint 提示（**已过时**），另外一种是 Hive 优化器根据参与 join 表的数据量大小，自动触发。
@@ -1038,7 +1038,7 @@ set hive.map.aggr.hash.force.flush.memory.threshold=0.9
   - 若有些 Common Join 任务所需的表大小，在 SQL 的编译阶段未知（例如对子查询进行 join 操作）。Hive 会在编译阶段生成一个条件任务(Conditional Task)，其下会包含一个计划列表，计划列表中包含转换后的 Map Join 任务以及原有的 Common Join 任务。最终具体采用哪个计划，是在运行时决定的。
 - 查看表/分区的大小信息：`desc formatted table_name partition(partition_col='partition');`
 
-![Conditional Task](https://github.com/xianliu18/ARTS/tree/master/big_data/images/02hive/hive_conditional_task.jpeg)
+![Conditional Task](../images/02hive/hive_conditional_task.jpeg)
 
 ```sh
 # 是否自动触发 join 转换，默认为 true
@@ -1162,7 +1162,7 @@ set hive.map.aggr.hash.force.flush.memory.threshold=0.9
 - Skew Join 的原理是，为倾斜的大 key 单独启动一个 Map Join 任务进行计算，其余 key 进行正常的 Common Join。
 - 这种方案对参与 join 的源表大小没有要求，但是对两表中倾斜的 key 的数据量有要求，要求一张表中的倾斜 key 的数据量比较小。
 
-![Skew Join](https://github.com/xianliu18/ARTS/tree/master/big_data/images/02hive/hive_skew_join.png)
+![Skew Join](../images/02hive/hive_skew_join.png)
 
 <details>
 <summary>Skew Join 参数配置</summary>
