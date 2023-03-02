@@ -19,7 +19,7 @@
 13. [领域驱动设计(DDD)](#13)
 14. [系统设计相关](#14)
 
-### 1，Java 基础
+### 1. Java 基础
 1.1 八种基本数据类型：
   - `byte`，`short`，`int`，`long`，`float`，`double`，`boolean`，`char`
 
@@ -53,7 +53,7 @@
   - checked exception 在定义方法时，必须声明所有可能会抛出的 checked exception;
   - 在调用这个方法时，必须捕获它的 checked exception；
 
-### 2，JVM 相关
+### 2. JVM 相关
 2.1 JVM 内存布局
 - 按照线程是否共享来分类：
 
@@ -125,7 +125,7 @@
   - 运行参数配置：`-XX:+HeapDumpOnOutOfMemoryError -XX:+HeapDumpPath=${指定 dump 文件的目录}`；
   - 使用 VisualVM 工具分析 dump 出的内存快照，定位主要是什么对象比较消耗内存，优化相关代码；
 
-### 3，Java 集合
+### 3. Java 集合
 3.1 String，StringBuilder 和 StringBuffer
 - StringBuilder 可变，线程不安全；
 - StringBuffer 可变，线程安全，内部方法使用了 synchronized 锁；
@@ -202,7 +202,7 @@ public static void main(String[] var0) {
   - Java 7：并发扩容时，采用**头插法**，造成链表逆序，容易出现环形链表，造成死循环；
   - Java 8：并发扩容时，采用**尾插法**，但是没有同步锁保护，可能造成数据被覆盖；
 
-### 4，并发编程
+### 4. 并发编程
 4.1 Thread 介绍
 - `run()`：Thread 类继承了 `Runnable` 接口，重写了 `run()` 方法；`run()` 方法用于封装需要执行的任务；
 - `start()`：用于线程的初始化，调度执行 `run()` 方法封装的任务；
@@ -332,12 +332,12 @@ static class Entry extends WeakReference<ThreadLocal<?>> {
 
 
 
-### 5，Spring
+### 5. Spring
 
 
-### 6，MySql
+### 6. MySql
 
-### 7，Redis
+### 7. Redis
 #### 7.1 常用数据结构
 - `String`：分布式锁、存储简单的热点数据；
 - `Hash`：用户基本信息，用于抽奖的活动信息(活动的名称，开始时间，结束时间，审核状态等等)；
@@ -378,19 +378,19 @@ static class Entry extends WeakReference<ThreadLocal<?>> {
 - 缓存常见问题
 - Redis 分布式锁
 
-### 8，ElasticSearch
+### 8. ElasticSearch
 es：
   - keyword 和 Text 的区别
   - join 连表查询的解决方案
   - mysql 同步到 ES，join 查询解决方案：https://www.infoq.cn/article/1afyz3b6hnhprrg12833
 - https://www.cnblogs.com/hahaha111122222/p/12177377.html
 
-### 9，消息队列(Kafka)
+### 9. 消息队列(Kafka)
 
-### 10，Dubbo
+### 10. Dubbo
 
 
-### 11，设计模式
+### 11. 设计模式
 - 单例模式示例
 
 <details>
@@ -401,12 +401,12 @@ es：
 ```
 </details>
 
-### 12，算法
+### 12. 算法
 - [leetcode 第一题解法](https://www.bilibili.com/video/BV1Hy4y1B78T?p=4)
 
 
 
-### 13，[领域驱动设计(DDD)](https://github.com/xianliu18/ARTS/blob/master/ddd/03总结.md)
+### 13. [领域驱动设计(DDD)](https://github.com/xianliu18/ARTS/blob/master/ddd/03总结.md)
 #### 13.1 贫血模型和充血模型
 - MVC 架构，Repository 层负责数据访问，Service 层负责业务逻辑，Controller 层负责暴露接口；
 - 贫血模型(Anemic Domain Model)：
@@ -486,5 +486,5 @@ es：
 - CQRS
   - 读写分离
 
-### 14，系统设计相关
+### 14. 系统设计相关
 
