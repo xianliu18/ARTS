@@ -19,7 +19,7 @@
 13. [领域驱动设计(DDD)](#13)
 14. [系统设计相关](#14)
 
-### 1. Java 基础
+### 1 Java 基础
 1.1 八种基本数据类型：
   - `byte`，`short`，`int`，`long`，`float`，`double`，`boolean`，`char`
 
@@ -53,7 +53,7 @@
   - checked exception 在定义方法时，必须声明所有可能会抛出的 checked exception;
   - 在调用这个方法时，必须捕获它的 checked exception；
 
-### 2. JVM 相关
+### 2 JVM 相关
 2.1 JVM 内存布局
 - 按照线程是否共享来分类：
 
