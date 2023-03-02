@@ -279,7 +279,7 @@ public void run() {
 4.3 `wait`、`sleep`、`join` 方法区别：
 - `wait` 和 `sleep` 都会使线程进入阻塞状态，都是可中断方法，被中断后，会抛出 `InterruptedException`；
 - `wait` 是 Object 方法，`sleep` 是 Thread 方法；
-- `wait` 必须在同步方法(或同步代码块)中使用，`sleep` 不需要；
+- `wait` 必须在同步方法(或同步代码块，`synchronized`)中使用，`sleep` 不需要；
 - `wait` 会释放锁，`sleep` 不会释放锁；
 - `join` 是 Thread 中的 synchronized 修饰的方法，里面调用了 `wait` 方法，让持有当前同步锁的线程进入等待状态，也就是主线程，当子线程执行完毕后，JVM 会调用 `lock.notifyAll(thread)` 方法，唤醒主线程继续执行；
 
@@ -324,15 +324,133 @@ static class Entry extends WeakReference<ThreadLocal<?>> {
   - 当一个线程对 `volatile` 修饰的变量进行读操作时，JMM 会把该线程对应的本地内存置为无效，从主内存中读取最新的值；
 
 4.8 `synchronized`
+- JVM 层面的悲观锁；
+- 底层依赖监视器(Monitor)，监视器又依赖操作系统的互斥锁；
+- 锁升级：无锁、偏向锁、轻量级锁、重量级锁、GC 标记；
 
+![JVM 对象头](./images/JVM对象头.png)
 
+- 锁的执行：`EntryList`、`WaitSet`；
 
+![锁的执行](./images/锁的执行.image)
 
-4.9 `AbstractQueuedSynchronizer`(AQS)
+- 同步方法：`ACC_SYNCHRONIZED` 同步标识；
+- 同步代码块：`monitorenter`、`monitorexist` 两条指令；
+- 静态同步方法，锁对象为类；普通同步方法，锁对象为实例对象；
+- 可重入特性：
+  - 当前线程获得锁后，通过cas将`_owner`指向当前线程，若当前线程再次请求获得锁， `_owner`指向不变，执行`_recursions++`记录重入的次数，若尝试获得锁失败，则在`_EntryList`区域等待。
 
+4.9 `synchronized` 和 `Lock` 对比
+- `synchronized` 是 JVM 底层实现的，`Lock` 是 JDK 接口层面的；
+- `synchronized` 是隐式的，`Lock` 是显式的，需要手动加锁和解锁；
+- `synchronized` 无论如何都会释放，即使出现异常；`Lock` 需要自己保障正确释放；
+- `synchronized` 是阻塞式获取锁，`Lock` 可以阻塞获取，可中断，还可以尝试获取，还可以设置超时等待获取；
+- `synchronized` 无法判断锁的状态，`Lock` 可以判断锁的状态；
+- `synchronized` 可重入，不可中断，非公平；`Lock` 可重入，可中断，可配置公平性(公平和非公平都可以)；
+- 如果竞争不激烈，两者的性能都差不多的，可是 `synchronized` 的性能还在不断的优化；当竞争资源非常激烈时（即有大量线程同时竞争），此时`Lock`的性能要远远优于`synchronized`；
 
+4.10 `AbstractQueuedSynchronizer`(AQS)
+- AQS 基于 CLH 变体的虚拟双向队列；
+- `volatile int state`：代表共享资源的状态，`state = 1` 代表当前对象锁已被占有，其他线程来加锁会失败；加锁失败的线程会被放入一个 FIFO 等待队列中，`UNSAFE.park()`方法阻塞当前线程；
+- 通过 CAS 来保证 `state` 并发修改的安全性；
+- `thread`：当前占有锁的线程；
+- 锁的模式：独占锁、共享锁；
+- `waitStatus`：CANCELLED、SIGNAL、CNODITION、PROPAGATE、0(默认值)；
+
+4.11 `CountDownLatch` 和 `CyclicBarrier`
+- `CountDownLatch` 可以当作一个计数器来使用，比如主线程等待所有子线程都执行过某个时间点后，才能继续执行；
+  - `CountDownLatch` 利用 AQS 的共享锁来进行线程的通知，`await` 方法等待 Latch 达到 0 或被中断，抛出异常后，才会被执行，即依次唤醒队列中的节点；
+- `CyclicBarrier`：所有线程从同一时间点开始执行；
+  - `CyclicBarrier` 利用 `ReentrantLock` 中的 `Condition` 来阻塞和通知线程；等到线程数增长到指定数量后，调用 `Condition.signalAll()` 唤醒所有线程；
+
+4.12 锁的分类
+a. 乐观锁与悲观锁
+- 乐观锁认为自己在使用数据时，不会有别的线程修改数据，所以不会加锁，使用处理器提供的 CAS 指令来实现；
+  - CAS 算法涉及到三个操作数：
+    - 要读写的内存值 V；
+    - 进行比较的值 E(预期值)；
+    - 要写入的新值 N；
+    - 当 `V == E` 时，用 N 更新 V；
+  - CAS 算法的三个问题：
+    - ABA 问题，可以使用时间戳或版本号解决；
+    - 循环时间长开销大；
+    - 只能保证一个共享变量的原子操作；
+- 悲观锁认为自己在使用数据的时候，一定有别的线程来修改数据，因此在获取数据之前先加锁:
+  - `synchronized` 或 `ReentrantLock`；
+
+b. 公平锁与非公平锁
+- 非公平锁：多个线程加锁时，直接尝试加锁，获取不到才会进入等待队列的队尾等待；
+- 公平锁：是通过同步队列来实现多个线程按照申请锁的顺序来获取锁，从而实现公平性；
+  - 公平锁的 `lock` 方法会调用 `hasQueuedPredecessors()` 方法，即判断当前线程是否位于同步队列中的第一个；
+- 优缺点：
+  - 公平锁不会产生线程饥饿，CPU 唤醒阻塞线程的开销会比非公平锁大，所以整体吞吐率比非公平锁低；
+  - 非公平锁减少唤起线程的开销，整体的吞吐率高，但有可能产生线程饥饿，即等待队列中的线程一直获取不到锁；
+
+c. 独占锁与共享锁
+- 独占锁：是指该锁一次只能被一个线程所持有；`ReentrantLock` 是独占锁；
+- 共享锁：是指该锁可被多个线程所持有；`ReentrantReadWriteLock` 是共享锁；
+
+d. 可重入锁
+- 可重入锁，是指在同一个线程在外层方法获取锁的时候，再进入该线程的内层方法会自动获取锁（前提锁对象得是同一个对象或者class），不会因为之前已经获取过还没释放而阻塞。`ReentrantLock`和`synchronized` 都是可重入锁，可重入锁的一个优点是可一定程度避免死锁。
+
+e. 自旋锁
+- 当前线程获取锁时，如果发现锁已经被其他线程占有，并不会马上阻塞自己，在不放弃 CPU 的情况下，多次尝试；自旋等待虽然避免了线程切换的开销，但是以浪费 CPU 为代价；
+
+4.13 线程池
+4.13.1 `Executors` 创建线程池的弊端：
+- `FixedThreadPool` 和 `SingleThreadPool`：允许请求队列长度为 `Integer.MAX_VALUE`，可能会堆积大量请求，造成 OOM；
+- `CachedThreadPool` 和 `ScheduledThreadPool`：允许创建的线程数量为 `Integer.MAX_VALUE`，可能会创建大量的线程，造成 OOM；
+
+4.13.2 `ThreadPoolExecutor` 六大核心参数：
+- `corePoolSize`：核心线程数；
+- `maximumPoolSize`：最大线程数；
+- `keepAliveTime`：空闲线程存活时间；
+- `timeUnit`：时间单位；
+- `workQueue`：存放待执行任务的队列；
+- `handler`：当线程池线程数已满，且工作队列达到饱和，新提交的任务使用拒绝策略处理；
+  - `AbortPolicy`：丢弃任务并抛异常，默认拒绝策略；
+  - `DiscardPolicy`：丢弃任务但不抛异常；
+  - `DiscardOldestPolicy`：丢弃队列最前面的任务，然后重新提交被拒绝的任务；
+  - `CallerRunsPolicy`：由调用线程（提交任务的线程）处理该任务，从而降低新任务的流量；
+- 动态调参：支持线程池参数动态调整，包括修改 `corePoolSize`、`maximumPoolSize`、`workQueue`；参数修改后及时生效；
+- 增加线程池监控：包括线程池的任务执行情况、最大任务执行时间、平均任务执行时间等；
+
+4.13.3 `Worker` 内部类
+- `Worker` 内部类通过继承 AQS 来实现非公平，独占，不可重入锁；
+- 通过 `Worker` 内部类可以掌握线程的运行状态，维护线程的生命周期；
+  - `lock` 方法获取不到锁，表示当前线程正在执行任务中，不应该中断；
+  - 线程池在执行 `shutdown` 方法或 `tryTerminate` 方法时，会调用 `interruptIdleWorkers` 方法来中断空闲的线程，`interruptIdleWorkers` 方法会使用 `tryLock` 方法来判断线程池中的线程是否是空闲状态；
+  - Java 借助**中断机制**来停止一个线程：`public void interrupt();`；
+
+```java
+private final class Worker extends AbstractQueuedSynchronizer implements Runnable {
+  final Thread thread;
+
+  Runnable firstTask;
+}
+```
 
 ### 5. <span id="5">Spring</span>
+5.1 SpringMVC 流程图
+
+![SpringMVC 流程图](./images/SpringMVC流程图.image)
+
+5.2 `BeanFactory` 和 `ApplicationContext` 区别
+- `BeanFactory` 是 Spring 里面最底层的接口，包含了各种 Bean 的定义，负责 Bean 的生命周期(读取配置文件，加载，实例化)，维护 bean 之间的依赖关系；
+- `ApplicationContext` 接口继承了 `BeanFactory` 接口，除了提供 `BeanFactory` 所具有的功能外，还提供了更完整的框架功能：国际化、统一的资源文件访问方式(`ResourceLoader` 接口)、事件驱动机制(`ApplicationEventPublisher`接口)等；
+
+5.3 `BeanFactory` 和 `FactoryBean` 的区别：
+- `BeanFactory` 是 IOC 最基本的容器，负责生产和管理 bean，提供了一个 Spring IOC 容器规范，`DefaultListableBeanFactory`、`XmlBeanFactory`、`ApplicationContext` 等具体的容器都实现了 `BeanFactory`；
+- `FactoryBean`：创建 Bean 的一种方式，在 IOC 容器的基础上，给 Bean 的实现加上了简单工厂模式和装饰模式；
+
+5.4 动态代理
+- JDK 动态代理，只能基于接口进行代理，通过反编译，可以发现代理类继承自 Proxy;
+- Cglib 代理：基于 ASM 字节码，在运行时对字节码进行修改和动态生成，通过继承的方式进行代理，无论对象有没有实现接口，都可以进行代理；
+
+5.5 控制反转(Inversion of Control, IOC)
+- 由 Spring 来负责控制对象的生命周期，`@ComponentScan`
+
+// TODO: 待完成
 
 
 ### 6. <span id="6">MySql</span>
