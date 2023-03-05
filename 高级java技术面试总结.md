@@ -435,25 +435,426 @@ private final class Worker extends AbstractQueuedSynchronizer implements Runnabl
 
 ![SpringMVC 流程图](./images/SpringMVC流程图.image)
 
+5.1.1 拦截器和过滤器
+- 拦截器：`org.aopalliance.intercept.Interceptor`，过滤器：`javax.servlet.Filter`；
+- 实现原理不同：拦截器是基于 java 的反射机制，而过滤器是基于函数回调；
+- 拦截器不依赖于 servlet 容器，过滤器则依赖 servlet 容器；
+- 拦截器只能对 action 请求起作用，而过滤器则可以对几乎所有的请求起作用；
+- 在 action 的生命周期中，拦截器可以多次被调用，而过滤器只能在容器初始化时被调用一次；
+
 5.2 `BeanFactory` 和 `ApplicationContext` 区别
-- `BeanFactory` 是 Spring 里面最底层的接口，包含了各种 Bean 的定义，负责 Bean 的生命周期(读取配置文件，加载，实例化)，维护 bean 之间的依赖关系；
+- `BeanFactory` 是 Spring 容器最核心也是最基础的接口，用于管理 bean 的工厂，最核心的功能是加载 bean，即 `getBean` 方法，包含了各种 Bean 的定义，负责 Bean 的生命周期(读取配置文件，加载，实例化)，维护 bean 之间的依赖关系；
 - `ApplicationContext` 接口继承了 `BeanFactory` 接口，除了提供 `BeanFactory` 所具有的功能外，还提供了更完整的框架功能：国际化、统一的资源文件访问方式(`ResourceLoader` 接口)、事件驱动机制(`ApplicationEventPublisher`接口)等；
 
 5.3 `BeanFactory` 和 `FactoryBean` 的区别：
 - `BeanFactory` 是 IOC 最基本的容器，负责生产和管理 bean，提供了一个 Spring IOC 容器规范，`DefaultListableBeanFactory`、`XmlBeanFactory`、`ApplicationContext` 等具体的容器都实现了 `BeanFactory`；
-- `FactoryBean`：创建 Bean 的一种方式，在 IOC 容器的基础上，给 Bean 的实现加上了简单工厂模式和装饰模式；
+- `FactoryBean`：工厂 bean，实现该接口的类可以自定义想要创建的 bean 实例，`FactoryBean#getObject`返回一个代理类，在代理类中可以实现自定义逻辑，如自定义的监控、限流等等；
 
 5.4 动态代理
 - JDK 动态代理，只能基于接口进行代理，通过反编译，可以发现代理类继承自 Proxy;
 - Cglib 代理：基于 ASM 字节码，在运行时对字节码进行修改和动态生成，通过继承的方式进行代理，无论对象有没有实现接口，都可以进行代理；
 
 5.5 控制反转(Inversion of Control, IOC)
-- 由 Spring 来负责控制对象的生命周期，`@ComponentScan`
+- 由 Spring 来负责控制对象的生命周期，`@ComponentScan` 定义扫描包路径，将 `@Component`、`@Controller`、`@Service`、`@Repository` 等注解的类加载到 Spring 容器；
+  - `@Component` 是通用注解，其他三个注解是这个注解的衍生注解；
+  - `@Controller` 是 SpringMVC 注解，用于控制层；
+  - `@Service` 用于业务逻辑层；
+  - `@Repository` 用于持久层，标注 DAO 类；
 
-// TODO: 待完成
+- `@Configuration` 和 `@Component` 区别：
+  - `@Configuration` 本质上还是 `@Component`，`@Configuration` 中所有带 `@Bean` 注解的方法都会被动态代理，调用该方法返回的都是同一个实例对象；
+  - `@Component` 修饰的类，每次都会创建一个新的对象返回；
 
+5.6 依赖注入(Dependency Injection, DI)
+- 依赖注入，常见 3 种方式：
+  - 属性注入
+  - Setter 注入
+  - 构造方法注入
+
+- `@Autowired` 和 `@Resource` 用于维护 bean 之间的依赖关系；
+  - 相同点：
+    - `@Autowired` 和 `@Resource` 都是作为 bean 对象注入的时候使用；
+    - 两者都可以声明在字段和 setter 方法上；
+  - 不同点：
+    - `@Autowired` 是 spring 提供的，`@Resource` 是 J2EE 提供的；
+    - `@Autowired` 注入的对象需要在 IOC 容器种存在，否则需要加上属性 `required = false`，表示忽略当前要注入的 bean；
+    - 注入方式：
+      - `@Autowired` 默认是 byType 方式注入，可以配合 `@Qualifier` 注解来显示指定 name 的值；
+      - `@Resource` 默认是 byName 方式注入，如果没有匹配，则通过 byType 注入；`@Resource` 还有两个重要的属性：name 和 type，用来显示指定 byName 和 byType 方式注入；
+
+5.7 Bean 生命周期
+- 概述
+
+![bean 生命周期概述](./images/bean生命周期概述.png)
+
+- 整体描述
+
+![bean 生命周期整体描述](./images/bean生命周期整体描述.png)
+
+5.7.1 `BeanDefinition`
+- `BeanDefinition` 接口用于描述 bean 的元信息，包含 bean 的类信息(全限定类名 beanClassName)、属性（作用域、描述信息）、依赖关系等；**主要目的**是允许 `BeanFactoryPostProcessor` 拦截修改属性值和其他 bean 的元数据；
+  - `AbstractBeanDefinition`：抽象类，默认实现了 `BeanDefinition` 中的绝大部分方法；
+  - `GenericBeanDefinition`：相比 `AbstractBeanDefinition`，新增 `parentName` 属性，可以灵活设置 parent bean definition；
+  - `ScannedGenericBeanDefinition`：通过 `@Component`、`@Controller`、`@Service` 等方式注解的类，会以 `ScannedGenericBeanDefinition` 的形式存在；
+  - `AnnotatedGenericBeanDefinition`：借助于 `@Import` 导入的 bean；
+- `BeanDefinitionRegistry` 是维护 `BeanDefinition` 的注册中心，它内部存放了 IOC 容器中的 bean 定义信息。它的实现类有 `DefaultListableBeanFactory`；
+
+5.7.2 spring 中的常见扩展点
+- `BeanFactoryPostProcessor`：在 `BeanDefinition` 加载完成之后，未实例化之前，定制化修改 `BeanDefinition`；
+- `BeanPostProcessor`：在 bean 的初始化阶段前后添加自定义处理逻辑，例如 AOP 通过 `AbstractAutoProxyCreator#postProcessAfterInitialization` 方法生产代理 bean 等；
+
+5.7.3 spring 与 Mybatis 整合
+- `MapperScannerConfigurer` 扫描注册 basePackage 包下的所有 bean，并将对应的接口类型改造为 `MapperFactoryBean`；
+  - `MapperFactoryBean` 继承了 `SqlSessionDaoSupport` 类，`SqlSessionDaoSupport` 类继承 `DaoSupport` 抽象类，`DaoSupport` 抽象类实现了 `InitializingBean` 接口；
+  - `MapperFactoryBean` 的出现是为了代替手工使用 `SqlSessionDaoSupport` 或 `SqlSessionTemplate` 编写数据访问对象(DAO)的代码，使用动态代理实现；
+- XML 中的 SQL 会被解析并保存到本地缓存中，key 是 SQL 的 namespace + id， value 是 SQL 的封装；
+- 当我们调用 DAO 接口时，会走到代理类中，通过接口的全路径名，从步骤 2 的缓存中找到对应的 SQL，然后执行并返回结果；
+
+5.7.2 三级缓存与循环依赖
+- 循环依赖分类：
+  - 构造器循环依赖：
+    - spring 无法解决此类依赖，因为创建 bean 需要使用构造器，当构造函数出现循环依赖时，我们无法创建“不完整”的 bean 实例；
+    - 会抛出 `BeanCurrentlyInCreationException`；
+  - 赋值属性循环依赖：
+    - spring 只支持 bean 在**单例模式（singleton)**下的循环依赖；其他模式下的循环依赖，会抛出 `BeanCurrentlyInCreationException`；
+- 解决循环依赖的方式：提前暴露创建中的 bean 实例；
+  - 一级缓存 `singletonObjects`：存储所有创建完成的单例 bean；
+  - 二级缓存 `earlySingletonObjects`：完成实例化，但未进行属性注入及初始化的对象，即提前暴露的单例缓存，`ObjectFactory` 返回的 `bean`；
+  - 三级缓存 `singletonFactories`：生产单例的工厂缓存`ObjectFactory`；
+- 使用两级缓存是否可以？
+  - 不可以；
+  - Bean 的生命周期：`实例化 -> 属性注入 -> 初始化`；
+  - 若不使用三级缓存，在对象 A 实例化后，就需要马上为 A 创建代理，然后放入到二级缓存中去，这样，违背了 Spring 中 AOP 与 Bean 的生命周期相结合的设计原则；
+  - AOP 与 Bean 的生命周期结合，是通过 `AnnotationAwareAspectJAutoProxyCreator` 这个后置处理器完成的，调用其中的 `postProcessAfterInitialization` 方法，对初始化后的 Bean 完成动态代理；
+
+![三级缓存对象创建过程](./images/三级缓存对象创建过程.png)
+
+5.7.3 spring 事务的传播行为
+- 支持当前事务：
+  - **REQUIRED**：默认，若当前没有事务，则建立一个新事务；若存在事务，直接加入；
+  - **SUPPORTS**：若当前有事务，直接加入；若没有事务，以非事务的方式执行；
+  - **MANDATORY**：若当前有事务，直接加入；若没有事务，抛异常；
+- 不支持当前事务：
+  - **REQUIRED_NEW**：新建事务，若当前存在事务，把当前事务挂起；
+  - **SUPPORTED**：若当前没有事务，则以非事务的方式操作；若当前存在事务，把当前事务挂起；
+  - **NEVER**：若当前没有事务，则以非事务的方式操作；若当前存在事务，抛异常；
+- 嵌套事务：
+  - **NESTED**：嵌套事务呈现父子事务的概念，父子之间是有关联的，核心思想就是子事务不会独立提交，而是取决于父事务，当父事务提交，子事务才会提交；若父事务回滚，则子事务也回滚；
+  - 若当前存在事务，则会在内部开启一个新事务，作为嵌套事务存在；
+  - 若当前无事务，则开启新事务，类似`REQUIRED`；
+- `REQUIRED_NEW`示例：
+  - `aMethod` 调用 `bMethod`，`aMethod` 用 `PROPAGATION_REQUIRED` 修饰，`bMethod` 用 `REQUIRED_NEW` 修饰；
+    - `aMethod` 异常，`bMethod` 不会回滚，因为 `bMethod` 开启了独立的事务；
+    - 若 `bMethod` 抛出了未捕获异常，且这个异常满足事务回滚规则，`aMethod` 也会回滚，因为这个异常被 `aMethod` 的事务管理机制监测到了；
+
+5.7.4 Spring 事务的实现原理
+- Spring 事务的底层实现主要使用的技术：`AOP(动态代理） + ThreadLocal + try/catch`；
+  - 动态代理：基本所有要进行逻辑增强的地方都会用到动态代理，AOP 底层也是动态代理实现的；
+  - `ThreadLocal`：主要用于线程间的资源隔离，以此实现不同线程可以使用不同的数据源、隔离级别等；
+  - `try/catch`：最终是执行 `commit` 还是 `rollback`，是根据业务逻辑处理是否抛出异常来决定；
+
+5.8 SpringBoot 自动装配原理
+- SpringBoot 启动时，会执行 `SpringApplication.run()`，`run()` 方法会刷新容器，刷新容器时，会解析启动类上的注解 `@SpringBootApplication`，这是个复合注解，其中有三个比较重要的注解 `@SpringBootConfiguration`、`@ComponentScan`、`@EnableAutoConfiguration`：
+  - `@SpringBootConfiguration` 底层是 `@Configuration` 注解，通过 `@Configuration` 和 `@Bean` 结合，将 Bean 注册到 Spring IOC 容器；
+  - `@ComponentScan`  扫描注解，默认是扫描当前类下的 package，将 `@Component`、`@Controller`、`@Service`、`@Repository` 等注解加载到 IOC 容器中；
+  - `@EnableAutoConfiguration` 开启自动配置，是一个复合注解；
+    - `@AutoConfigurationPackage`：自动配置包；
+    - `@Import(AutoConfigurationImportSelector.class)`：会扫描所有 jar 路径下的 `META-INF/spring.factories`，将其文件包装成 `Properties` 对象，从 `Properties` 对象获取 key 值为 `EnableAutoConfiguration` 所对应的数据，加载到 IOC 容器，根据配置类上的条件注解 `@ConditionalOnXXX` 来判断是否将这些配置类在容器中进行实例化；
+
+5.9 类加载机制
+- **双亲委派模型**：一个类加载器首先将类加载请求转发到父类加载器，只有当父类加载器无法完成时，才尝试自己加载；
+  - 启动类加载器(Bootstrap ClassLoader) 是由 C++ 实现的，并不是继承自 `java.lang.ClassLoader`，没有对应的 Java 对象，举例来说，`java.lang.String` 是由启动类加载器加载的，而 `String.class.getClassLoader()` 就会返回 null；
+  - 扩展类加载器(Extension ClassLoader) 和应用程序类加载器(Application ClassLoader) 是 `sun.misc.Launcher` 的内部类，均继承自 `java.net.URLClassLoader`，`URLClassLoader` 继承自抽象类 `java.lang.ClassLoader`：
+    - 每个 `ClassLoader` 都持有一个 `parent` 字段，指向父加载器，这个 `parent` 字段从 `java.lang.ClassLoader` 继承而来；
+- `java.lang.ClassLoader` 中的三个方法：
+  - `defineClass`：调用 native 方法把 Java 类的字节码解析成一个 Class 对象；
+  - `findClass`：把来自文件系统或网络的 `.class` 文件读取到内存，得到字节码数组，然后调用 `defineClass` 方法得到 Class 对象；
+  - `loadClass`：默认按照**双亲委派模型**来加载类，具体加载过程：
+    - 调用 `findLoadedClass(name)` 检查类是否已经加载过；若没有，则继续；
+    - 若 `parent` 属性值不为 null，根据双亲委派模型，调用 `parent.loadClass(name, false)`，优先从 parent 中执行 loadClass；
+    - 若 `parent` 属性值为 null，则调用 `findBootStrapClassOrNull(name)` 判断是否在 `BootStrapClassLoader` 中加载过；
+    - 如果类仍未找到，则执行 `findClass` 查找类，`findClass` 有自定义的 `ClassLoader` 实现；
+- 自定义 ClassLoader，是通过继承 `java.lang.ClassLoader` 抽象类，重写以下方法：
+  - 如果希望**遵循**双亲委派模型，重写 `findClass()` 方法；
+  - 如果希望**打破**双亲委派模型，重写 `loadClass()` 方法；
 
 ### 6. <span id="6">MySql</span>
+6.1 SQL 语句执行流程
+- MySQL 分为 Server 层和存储引擎层两部分：
+  - Server 层包括连接器、查询引擎、分析器、优化器、执行器等；
+  - 存储引擎层负责数据的存储和提取；
+
+![mysql的逻辑架构图](./mysql/images/mysql的逻辑架构图.webp)
+
+- 连接器：管理连接，权限验证；
+  - 负责跟客户端建立连接、获取权限、维持和管理连接；
+- 查询缓存
+- 分析器：SQL 的词法分析，语法分析；
+  - 根据语法规则，判断输入的 SQL 语句是否满足 MySQL 语法规则；
+- 优化器：生成 SQL 执行计划，索引选择；
+  - 数据表里面有多个索引的时候，优化器决定使用哪个索引；或者在一个语句有多表关联(join)的时候，决定各个表的连接顺序；
+- 执行器：操作存储引擎，返回查询结果；
+  - 判断对指定表有没有执行查询权限，若有权限，则调用存储引擎的接口，执行查询；
+
+6.2 存储引擎：InnoDB 和 MyISAM
+- InnoDB 支持事务，MyISAM 不支持；
+- InnoDB 支持外键，MyISAM 不支持；
+- InnoDB 使用聚集索引，索引结构为 B+Tree，叶子节点保存了主键和数据记录；MyISAM 使用非聚集索引，索引和数据文件是分离的，索引中保存的是数据文件的指针；
+- InnoDB 支持表、行级锁，MyISAM 支持表级锁；
+
+6.3 InnoDB Buffer Pool(InnoDB 缓冲池)
+- `Buffer Pool` 用于缓存表数据和索引数据，避免每次访问都进行磁盘 IO，起到加速访问的作用；
+- 预读机制：
+  - 根据“局部性原理”，使用一些数据，大概率会使用附近的数据；磁盘读写，并不是按需读取，而是按页读取，一次至少读取一页数据（一般是 4KB）；
+- `Buffer Pool` 采用变种 LRU 算法(最近最少使用)，将 LRU 队列分成新生代(new sublist)和老生代(old sublist)两个区域，新生代用来存热点数据页，老生代用来存使用频率较低的数据页，默认比例为 63:37；
+  - 将缓冲池分为老生代和新生代，进入缓冲池的页，优先进入老生代，页被访问且在老年代停留时间超过配置的阈值，才进入新生代，以解决预读失效和缓存污染的问题；
+  - 预读失效：由于预读(Read-Ahead)，提前把页放入缓冲池，但最终 MySQL 并没有从页中读取数据，称为预读失效；
+  - 缓冲池污染：当某一个 SQL 语句，要批量扫描大量数据时，可能导致把缓冲池的所有页都替换出去，导致大量热数据被换出，MySQL 性能急剧下降，这种情况属于缓冲池污染；
+- 参数：
+  - `innodb_buffer_pool_size`：配置缓冲池的大小；
+  - `innodb_old_blocks_pct`：老生代占整个 LRU 链长度的比例，默认是 37；
+  - `innodb_old_blocks_time`：老生代停留时间窗口，单位是毫秒，默认是 1000；
+
+6.4 Change Buffer
+- 写缓冲是一种应用在**非唯一普通索引页**(non-unique secondary index page)不在缓冲池中，对页进行了写操作，并不会立刻将磁盘页加载到缓冲池，而仅仅记录缓冲变更(buffer changes)，等未来数据被读取时，再将数据合并(merge)恢复到缓冲池中的技术。写缓冲的目的是降低写操作的磁盘 IO，提升数据库性能；
+  - 如果索引设置了唯一属性，在进行修改操作时，InnoDB 必须进行唯一性检查；
+- 写缓冲场景：
+  - 数据库大部分是非唯一索引；
+  - 业务是写多读少，或者不是写后立刻读取；
+    - 如果写后，立刻读取它；因为读取时，本来要进行页读取，相应页面就要入缓冲池，写缓冲增加了复杂度；
+- 参数：
+  - `innodb_change_buffer_max_size`：配置写缓冲的大小，占整个缓冲池的比例，默认值是 25%；
+  - `innodb_change_buffering`：配置哪些写操作启用写缓冲，可以设置成 `all/none/inserts/deletes`等；
+
+6.5 redolog(重做日志)
+
+![redo log存储状态](./images/redolog存储状态.webp)
+
+- redo log 可能存在三种状态：
+  - 存在 redo log buffer 中，物理上是在 MySQL 进程内存中，就是图中的红色部分；
+  - 写到磁盘(write)，但是没有持久化(fsync)，物理上是在文件系统的 page cache 里面，也就是图中的黄色部分；
+  - 持久化到磁盘，对应的是 hard disk，也就是图中的绿色部分。
+- 参数：`innodb_flush_log_at_trx_commit`
+  - 为 0，表示延迟写，每次事务提交时，都只是把 redo log 留在 redo log buffer 中；
+  - 为 1，表示实时写，实时刷，每次事务提交时，都将 redo log 直接持久化到磁盘；
+  - 为 2，表示实时写，延迟刷，每次事务提交时，只是把 redo log 写到 page cache；
+  - InnoDB 有一个后台线程，每隔 1 秒，就会把 redo log buffer 中的日志，调用 write 写到文件系统的 page cache，然后调用 fsync 持久化到磁盘；
+
+![redolog示例](./images/redolog示例.webp)
+
+- InnoDB 的 redo log 是固定大小的，比如可以配置为一组 4 个文件，每个文件的大小是 1G；
+- `write pos`：是当前记录的位置，一边写一边后移，写到第 3 号文件末尾后就回到 0 号文件开头；
+- `checkpoint`：是当前要擦除的位置，擦除记录前要把记录更新到数据文件；
+- `write pos` 和 `checkpoint` 之间还空着的部分，可以用来记录新的操作；
+
+6.6 binlog(归档日志)
+
+<details>
+<summary>实验准备</summary>
+
+```sql
+-- 建表和插入语句
+CREATE TABLE `t` (
+  `id` int(11) NOT NULL,
+  `a` int(11) DEFAULT NULL,
+  `t_modified` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `a` (`a`),
+  KEY `t_modified`(`t_modified`)
+) ENGINE=InnoDB;
+
+insert into t values(1,1,'2018-11-13');
+insert into t values(2,2,'2018-11-12');
+insert into t values(3,3,'2018-11-11');
+insert into t values(4,4,'2018-11-10');
+insert into t values(5,5,'2018-11-09');
+
+-- 删除语句
+delete from t /*comment*/  where a>=4 and t_modified<='2018-11-10' limit 1;
+```
+</details>
+
+6.6.1 statement 格式
+- 当`binlog_format=statement`时，binlog 里面记录的就是 SQL 语句原文；
+- 查看 binlog 中的内容：`show binlog events in 'mysql-bin.000092';`
+
+![statement格式 binlog 示例](./images/statement格式binlog示例.png)
+
+- 说明：
+  - 第二行是一个 BEGIN，跟第四行的 commit 对应，表示中间是一个事务；
+  - 第三行就是真实执行的语句。`use lottery` 命令，是 MySQL 根据当前要操作的表所在的数据库，自行添加的。这样做可以保证日志传到备库去执行的时候，不论当前的工作线程在哪个库里，都能够正确的执行；
+  - 最后一行是一个 COMMIT。`xid=7`，事务 id；
+- 存在问题：
+  - 由于 `delete` 带 `limit`，很可能会出现主备数据不一致的情况，比如：
+  - 如果 `delete` 语句使用的是索引 a，那么会根据索引 a 找到第一个满足条件的行，即 `a=4`这一行；
+  - 如果使用的是索引`t_modified`，那么删除的是 `t_modified='2018-11-09'`，也就是 `a=5`这一行；
+  - 而 `binlog_format=statement` 格式下，binlog 里面记录的是语句原文，可能会出现这样一种情况：在主库执行这条 SQL 语句的时候，用的是索引 a；而在备库执行这条语句的时候，却使用了索引 `t_modified`，导致主备数据不一致； 
+
+
+6.6.2 row 格式
+
+![row格式 binlog 示例](./images/row格式binlog示例.png)
+
+- 与 statement 格式相比，前后的 BEGIN 和 COMMIT 是一样的。但是，row 格式的 binlog 里没有 SQL 语句原文，而是替换成了两个 event：`Table_map` 和 `Delete_rows`：
+  - `Table_map`：用于说明接下来要操作的表是 `lottery` 库的表 `t`;
+  - `Delete_rows`：用于定义删除的行为；
+- 借助 `mysqlbinlog` 工具，解析和查看 binlog 中的详细信息；上图第 2 列，显示这个事务的binlog 是从 `154` 开始的：
+  - `mysqlbinlog --no-defaults -vv mysql-bin.000093 --start-position=154`
+
+![row格式 binlog 详细信息](./images/row格式binlog的详细信息.png)
+
+- `mysqlbinlog -vv`：是为了把内容都解析出来，所以从结果里面可以看到各个字段的值（比如，@1=5、@2=5 这些值）；
+- `binlog_row_image` 的默认配置是 FULL，因此 Delete_event 里面，包含了删掉行的所有字段的值。如果把 `binlog_row_image` 设置为 MINIMAL，则只会记录必要的信息，在这个例子里，就是只会记录 id=4 这个信息；
+- 当 `binlog_format` 使用 row 格式的时候，binlog 里面记录了真实删除行的主键 id，这样 binlog 传到备库去的时候，就肯定会删除 id=5 的行，不会有主备删除不同行的问题；
+
+6.6.3 mixed 格式
+- `statement` 格式的 binlog 可能会导致主备不一致，所以要使用 `row` 格式；
+- `row` 格式的 binlog 体积可能会非常大；比如 delete 删掉 10 万行数据，用 `statement`格式， binlog 中只会记录一个 SQL 语句，占用几十个字节的空间；而 `row` 格式，这 10 万条数据都会写到 binlog 中。这样做，不仅会占用更大的空间，同时写 binlog 也要耗费 IO 资源，影响执行速度；
+- `mixed`格式：Mysql 根据 SQL 语句是否可能引起主备不一致，如果有可能，就用 `row` 格式，否则就用 `statement` 格式；
+- **重要：**
+  - 现在越来越多的场景要求把 binlog 的格式设置为 **row**；好处之一：恢复数据；
+  - 分别从`delete`、`insert`和`update`这三种 SQL 语句，来看看数据恢复问题：
+  - 在 row 格式下，binlog 会记录被删掉的整行信息。所以，执行完 delete 语句后，发现删错数据了，可以把 binlog 中记录的 delete 语句转成 insert，把被错删的数据插入回去就可以恢复了；
+  - row 格式下，binlog 会记录 insert 语句的所有字段信息；insert 错了，可以直接把 insert 语句转成 delete 语句，删除掉被误差入的数据即可；
+  - 如果执行的是 update 语句，binlog 里面会记录**修改前整行的数据和修改后的整行数据**。所以，如果误执行了 update 语句，只需要把这个 event 前后的两行信息对调一下，再去数据库里面执行，就能恢复这个更新操作了；
+
+6.7 redolog 和 binlog 区别
+- redolog 是 InnoDB 引擎特有的，binlog 是 MySQL 的 Server 层实现的，所有引擎都可以使用；
+- redolog 是物理日志，记录的是“在某个数据页上做了什么修改”；binlog 是逻辑日志，记录的是这个语句的原始逻辑，比如“给 ID=2 这一行的 c 字段加 1”；
+- redolog 是循环写的，空间固定会用完；binlog 是可以追加写入的。“追加写”是指 binlog 文件写到一定大小后会切换到下一个，并不会覆盖以前的日志；
+
+6.8 两阶段提交：
+- `写 redolog -> 事务状态置为 prepare -> 写 binlog -> 提交事务 -> 修改 redolog 事务状态为 commit`；
+
+![两阶段提交示意图](./images/两阶段提交示意图.webp)
+
+- 在两阶段提交的不同时刻，MySQL 异常重启会出现什么现象？
+  - 时刻 A，写入 redo log 处于 prepare 阶段之后，写 binlog 之前，发生了崩溃(crash)，由于此时 binlog 还没写，redo log 也还没提交，所以崩溃恢复的时候，这个事务会回滚；
+  - 时刻 B，binlog 写完，redo log 还没 commit 前发生 crash，如何崩溃恢复？
+  - 崩溃恢复判断规则：
+    - 如果 redo log 里面的事务是完整的，即已经有了 commit 标识，则直接提交；
+    - 如果 redo log 里面的事务只有完整的 prepare，则应判断对应的事务 binlog 是否存在并完整：
+      - 如果是，则提交事务；(时刻 B 对应的情况)
+      - 否则，回滚事务；
+
+6.9 索引
+6.9.1 B+ 树和 B 树的优势
+- B+ 树的所有数据都在叶子节点，非叶子节点存储的是指向其他节点的指针；而 B 树的非叶子节点也保存具体的数据；同样大小的情况下，B+ 树可以存储更多的关键字，B+ 树比 B 树更加矮胖，IO 次数少；
+- B+ 树叶子结点使用双向链表前后关联，更加方便范围查询，即由于 B+ 树所有的数据都在叶子节点，并且节点之间有指针连接，在查找大于（或小于）某个关键字时，只需要找到该关键字，然后沿着链表遍历即可；
+- B+ 树更有利于对数据扫描，避免 B 树的回溯扫描；
+
+6.9.2 索引设计原则
+- 索引不是越多越好，维护索引需要时间和空间；
+- 频繁更新的数据不宜建索引；
+- 频繁 `group by`、`order by` 的列建议生成索引，可以大幅提高分组和排序效率；
+- 在区分度高的字段上建立索引，区分度太低，无法有效的利用索引，可能需要扫描所有的数据页，此时和不使用索引差不多；
+- 查询记录的使用，少使用 `select *`，尽量使用覆盖索引，可以减少回表操作，提升效率；
+
+6.9.3 索引失效的场景
+- 模糊搜索，左模糊或全模糊都会导致索引失效，如`like %a`或`like %a%`，右模糊可以利用索引；
+- 隐式类型转换，`select * from customer_info where name = 李四;` 中 name 是字符串类型，但是没有加引号，查询时，MySQL 会进行隐式转换，导致索引失效；
+- 索引字段使用函数或运算符操作，导致索引失效；
+- `or` 条件索引失效，条件中如果有 or，只要其中一个条件没有索引，其他字段有索引也不会用到；即 or 前后存在非索引列时，索引失效；`select * from stu where name='Tom' or age = 14`，name 和 age 均为普通索引，or 是可以使用 `index_merge` 合并索引；
+- 不符合联合索引的最左匹配原则：(A, B, C) 的联合索引，只 where 了单列 B 或 C 或多列(B, C)；
+  - `a = 1 and b > 0 and c = 1`，c 不走索引，多字段索引的情况下，mysql 会一直向右匹配直到遇到范围查询(>，<，between，like)，就停止匹配；
+
+6.9.4 索引名词
+- InnoDB 主键选择：
+  - InnoDB 推荐使用自增 ID 作为主键，自增 ID 可以保证每次插入时，B+ 树的索引是向右扩展的，可以避免 B+ 树的频繁合并和分裂(对比使用 UUID)，如果使用字符串主键或随机主键，会使得数据随机插入，效率比较差；
+- InnoDB 有两种索引：主键索引（聚集索引）、辅助索引（非聚集索引、二级索引）
+  - 主键索引：每个表中只有一个主键索引，叶子结点同时保存了主键的值和数据行记录；
+  - 辅助索引：叶子结点保存了索引字段的值以及主键的值；
+- 回表：先通过数据库普通索引扫描出数据所在的行，再通过行主键 ID 取出索引中未提供的数据，即基于非主键索引的查询需要多扫描一棵索引树；
+- 覆盖索引：如果一个索引包含（或者说覆盖）所有需要查询的字段值，我们就称之为覆盖索引；
+- 联合索引：相对单列索引，联合索引是用多个列组合构建的索引；
+- 索引下推：MySQL 5.6 引入了索引下推优化，可以在索引遍历过程中，对索引中包含的字段先做判断，过滤掉不符合条件的记录，减少回表数据量；
+
+6.9.5 Explain 关键字
+- `key`：查看有没有使用索引，key 为 null，说明没有用到索引；
+- `ken_len`：查看索引使用是否充分；
+- `type`：查看索引类型，all 表示全表扫描，即需要进行优化；
+  - `ref`：出现于 where 操作符为 "="且 where 字段为非唯一索引的单表或联表查询；
+  - `eq_ref`：出现于 where 操作符为 "="且 where 字段为唯一索引的联表查询；
+  - `range`：部分索引扫描，当查询为区间查询，且查询字段为索引字段时，这时会根据 where 条件对索引进行部分扫描；
+- `extra`：查看附加信息；
+  - `using index`：代表使用覆盖索引，不用回表；
+  - `using filesort`：代表 order by 字段不是索引，mysql 无法利用索引进行排序，需要优化；
+  - `using temporary`：创建了临时表来保存中间结果，需要优化；
+- `rows`：mysql 估算要查找到结果集需要扫描读取的数据行数，根据 rows 可以直观看出优化效果；
+
+6.9.6 快速查询 1000 万至 1000 万 100 条数据
+- 采用子查询的方式：
+  - `select * from single_info where id >= (select id from single_info limit 10000000, 1) limit 100;`
+
+6.10 MySQL 事务
+6.10.1 事务隔离级别
+- ACID：原子性(Atomicity)、一致性(Consistency)、隔离性(Isolation)、持久性(Durability)；
+
+6.10.2 事务操作可能会出现的数据问题
+- 脏读：A 事务读到了 B 事务未提交的数据，若 B 事务回滚，则 A 事务出错；
+- 不可重复读：重点是数据发生了修改，两次读取，数据的值不一样；
+- 幻读：专指新插入的行，两次查询，发现新增了一条未处理的记录；
+
+6.10.3 事务隔离级别
+- 读未提交、读已提交、可重复度、串行化
+- InnoDB 默认为可重复读，在可重复读隔离级别下，普通查询是快照读，是不会看到别的事务插入的数据；幻读在当前读下才会出现，要用间隙锁解决此问题；
+
+6.10.4 快照读
+- 快照读：不加锁的非阻塞读，为了提高并发性能，基于多版本并发控制实现(MVCC)；
+- MVCC 实现原理：
+  - 在 InnoDB 中，每行记录实际上都包含了两个隐藏字段：事务 id(trx_id)和回滚指针(roll_pointer)；
+  - 回滚指针，指向这条记录的上一个版本，事务对一条记录的修改，会导致该记录的 undo log 成为一条记录版本线性表(链表)，undo log 链首就是最新的旧记录，链尾就是最早的旧记录；
+- ReadView(读视图)：事务进行快照读操作的时候会产生读视图，主要包含以下 4 个内容：
+  - `creator_trx_id`：表示生成该 ReadView 事务的事务 id；
+  - `m_ids`：表示在生成 ReadView 时，当前系统中活跃的读写事务的事务 id 列表；
+  - `min_trx_id`：在生成 ReadView 时，当前系统中活跃的读写事务中最小的事务 id，即 m_ids 中的最小值；
+  - `max_trx_id`：表示生成 ReadView 时，系统中应该分配给下一个事务的 id 值；
+
+6.10.5 当前读
+- `select ... lock in share mode(共享锁)`、`select ... for update`、`update`、`insert`、`delete` 这些操作都是当前读，即读取记录的最新版本，会对读取的记录进行加锁；
+
+![当前读示例图](./images/forupdate查询.png)
+
+- `select ... for update;`
+  - 如果 `for update` 没有命中索引，会锁表；
+  - 如果数据不存在，不会锁表；
+  - 事务 A 提交后，事务 B 可以读取到事务 A 新增的数据，`select ... for update;` 为当前读；
+
+6.10.6 MySQL 中的锁
+- 表锁和行锁
+  - 表级锁：开销小、加锁快、加锁粒度大、发生锁冲突概率高、支持的并发度低；
+  - 行级锁：开销大、加锁慢、加锁粒度小、发生锁冲突概率低、支持的并发度高；
+- 意向锁
+  - 意向共享锁(IS Lock，Intention Shared Lock)；
+  - 意向排他锁(IX Lock，Intention Exclusive Lock)；
+  - 表中若存在意向锁，表明某个事务正在或即将锁定表中的数据行，是为了处理行锁和表锁之间的矛盾；
+- 行锁(Record Lock)、间隙锁(Gap Lock)、临键锁(Next-Key Lock)
+  - 行锁只能锁住行，如果往记录之间的间隙插入数据，就无法解决，因此 MySQL 引入间隙锁，间隙锁是左右开区间，间隙锁之间不会冲突；
+  - 间隙锁和行锁，合称 Next-Key Lock，区间为**左开右闭**；
+- 加锁原则：
+  - 加锁的基本单位是 `Next-Key Lock`，左开右闭；
+  - 查找过程中访问到的对象才会加锁；
+  - 索引上的等值查询，给唯一索引加锁的时候，`Next-Key Lock` 会退化为行锁；
+  - 索引上的等值查询，向右遍历时且最后一个值不满足等值条件的时候，`Next-Key Lock` 退化为间隙锁；
+  - 唯一索引上的范围查询会访问到不满足条件的第一个值为止；
+  - 查看锁状态命令：`show engine innodb status\G;`
+
+6.11 `exists` 和 `in` 对比
+- `in` 查询时，先查询子查询的表，然后内表和外表做笛卡尔积，在按照查询条件进行筛选；
+- `exists` 会先进行主查询，将查询到的数据循环带入子查询校验是否存在；
+- 内表大，`exists` 效率高；内表小，`in` 效率高；
+
+<details>
+<summary>exists 和 in 语法</summary>
+
+```sql
+-- in 查询
+select t1.id from tb_data t1 where t1.task_id IN (select t2.id from tb_task t2);
+
+-- exists 查询
+select t1.id from tb_data t1 where t1 where EXISTS (select * from tb_task t2 where t1.task_id = t2.id);
+```
+</details>
 
 ### 7. <span id="7">Redis</span>
 #### 7.1 常用数据结构
@@ -488,13 +889,14 @@ private final class Worker extends AbstractQueuedSynchronizer implements Runnabl
   - redis cluster 的 hash slot 算法
     - redis cluster 有固定的 16384(2^14) 个桶，对每个 key 计算 CRC16 的值，然后对 16384 取模，可以获取 key 对应的 hash slot；
 - Redis Cluster 故障转移
-  - // TODO: 待做
+  - 
 
 
 // TODO: 如何做？？？
 - 集群模式、故障转移、宕机问题
 - 缓存常见问题
 - Redis 分布式锁
+- Redisson 
 
 ### 8. <span id="8">ElasticSearch</span>
 es：
@@ -506,6 +908,8 @@ es：
 ### 9. <span id="9">消息队列(Kafka)</span>
 
 ### 10. <span id="10">Dubbo</span>
+
+// TODO: SPI 机制
 
 
 ### 11. <span id="11">设计模式</span>
