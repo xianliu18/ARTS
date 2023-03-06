@@ -857,7 +857,7 @@ select t1.id from tb_data t1 where t1 where EXISTS (select * from tb_task t2 whe
 </details>
 
 ### 7. <span id="7">Redis</span>
-#### 7.1 常用数据结构
+7.1 常用数据结构
 - `String`：分布式锁、存储简单的热点数据；
 - `Hash`：用户基本信息，用于抽奖的活动信息(活动的名称，开始时间，结束时间，审核状态等等)；
 - `Set`：共同好友，共同喜好，客户的兴趣标签；
@@ -873,7 +873,7 @@ select t1.id from tb_data t1 where t1 where EXISTS (select * from tb_task t2 whe
 - `skiplist(跳表)`是一种有序的数据结构，它通过在每个节点中维持多个指向其他节点的指针，从而达到快速访问节点的目的；
   - 跳表在链表的基础上，增加了多层级索引，通过索引位置的跳转，实现数据的快速定位；
 
-#### 7.2 Redis 集群
+7.2 Redis 集群
 - Redis 集群满足 CAP 中的 `CP`，即一致性和分区容错性；
   - Redis Cluster 集群中，如果某个主节点没有从节点，那么当它发生故障时，集群将完全处于不可用状态。
 - 集群类型：
@@ -889,14 +889,72 @@ select t1.id from tb_data t1 where t1 where EXISTS (select * from tb_task t2 whe
   - redis cluster 的 hash slot 算法
     - redis cluster 有固定的 16384(2^14) 个桶，对每个 key 计算 CRC16 的值，然后对 16384 取模，可以获取 key 对应的 hash slot；
 - Redis Cluster 故障转移
-  - 
+  - 某节点认为 A 宕机，此时是主观宕机；若集群内超过半数的节点认为 A 挂了，此时 A 就会标记为客观宕机；一旦节点被标记为了客观宕机，集群就会开始执行故障转移；其余正常运行的 master 节点，会进行投票选举，从 A 节点的 slave 节点中选举一个，将其切换成新的 master 对外提供服务。当某个 slave 获得超过半数的 master 节点投票，就成功当选；新的节点会执行 slave no one 来让自己停止复制 A 节点，使自己成为 master，向集群发送 PONG 消息来广播自己的最新状态；
+  - Redis Cluster 利用 gossip 协议来实现自身的消息扩散；每个 Redis 节点每秒钟都会向其他的节点发送 PING，然后被 PING 的节点会回一个 PONG；
 
+7.3 RDB 和 AOF
+- RDB(Redis Database)内存快照，指的是 Redis 内存中的数据在某一刻的状态数据；
+  - RDB 采用二进制 + 数据压缩的方式写磁盘，文件体积小，数据恢复速度快；但有可能会丢失数据；
+- AOF 日志存储的是 Redis 服务器的顺序指令序列，AOF 只记录对内存进行修改的指令记录；
+  - AOF 文件过大，恢复过程会非常缓慢；
+- RDB + 增量 AOF 的混合持久化策略；
 
-// TODO: 如何做？？？
-- 集群模式、故障转移、宕机问题
-- 缓存常见问题
-- Redis 分布式锁
-- Redisson 
+7.4 Redis 分布式锁
+- `set NX key <value>`：占锁成功，若业务代码出现异常或服务器宕机，没有执行删除锁的逻辑，会造成死锁，因此锁需要设置过期时间；
+- `set key <value> PX <过期时间> NX`：占锁 + 过期时间，为保证原子性，可以使用 Lua 脚本；过期时间设置为 110ms；
+- 生成随机唯一 id，给锁加上唯一值；
+  - 释放锁需要使用 Lua 脚本，包含两步：查询比较锁的值 + 删除锁；
+- 阻塞获取锁(50ms)
+  - 假设 1 万个请求同时去竞争一把锁，可能只有一个请求是成功的，其余 9999 个请求都会失败；
+
+7.4.1 Redisson
+![redisson锁原理](./images/redisson锁原理.jpeg)
+
+- watchdog 机制，看门狗机制来自动延长加锁的时间；
+
+7.5 缓存常见问题
+- 缓存雪崩：大量缓存数据在同一时间过期(失效)或 Redis 故障宕机；
+  - 均匀设置过期时间；
+  - 互斥锁，保证同一时间只有一个请求来构建缓存；
+  - 搭建 redis 集群，实现高可用；
+- 缓存击穿：热点数据过期，导致缓存失效，大量请求直接访问数据库；
+  - 互斥锁；
+  - 不给热点数据设置过期时间；
+- 缓存穿透：数据既不在缓存中，也不在数据库中；场景：黑客恶意攻击，故意大量访问某些不存在的数据；
+  - 非法请求限制；
+  - 缓存空值或默认值；
+  - 使用布隆过滤器，快速判断数据是否存在，避免通过查询数据库来判断数据是否存在；
+- 布隆过滤器：
+  - 由初始值为 0 的位图数组和 N 个哈希函数两部分组成；
+  - 用 N 个哈希函数分别对数据做哈希计算，得到 N 个哈希值；
+  - 将第一步得到的 N 个哈希值，对位图数组的长度取模，得到每个哈希值在位图数组的对应位置；
+  - 将每个哈希值在位图数组的对应位置，设置为 1；
+  - 查询布隆过滤器，若查询到不存在，则数据库中一定不存在这个数据；若存在，则有可能存在；
+
+7.6 数据库缓存一致性
+- 数据库和缓存无法做到强一致，但可以做到的是缓存和数据库达到最终一致，而且不一致的时间窗口能做到尽可能短；
+  - 从一致性角度看，采用**更新数据库后删除缓存值**，是更为合适的策略；
+  - 读写分离 + 主从复制延迟下，缓存和数据库一致性问题：
+    - 缓存延迟双删策略，延迟时间的设置：
+    - 延迟时间要大于主从复制的延迟时间；
+    - 延迟时间要大于线程 B 读取数据库 + 写入缓存的时间；
+
+7.7 分布式 ID 生成策略
+- ID 生成规则的硬性要求：
+  - 全局唯一；
+  - 趋势递增，MySQL 的 InnoDB 是聚集索引，使用的是 B+ 树结构来存储数据，应尽量使用有序的主键保证数据写入；
+  - 含时间戳，可以快速了解分布式 ID 生成的时间，定位问题；
+  - 高可用低延时：ID 生成的速度要快，避免成为系统瓶颈；
+- UUID 不能生成顺序、递增的数据，而且长；
+- 数据库集群模式：起始值和自增步长，集群多的情况，扩容比较麻烦；
+- 雪花算法，生成的是 Long 型 ID，一个 Long 型占 64 bit：
+  - 最高位为符号位，不使用；
+  - 41 位：用来记录时间戳；
+  - 10 位：工作机器 id；
+  - 12 位：序列号；
+  - 解决时钟回拨问题：美团开源的 Leaf 组件；
+
+![雪花算法结构](./images/雪花算法结构.png)
 
 ### 8. <span id="8">ElasticSearch</span>
 es：
@@ -906,27 +964,355 @@ es：
 - https://www.cnblogs.com/hahaha111122222/p/12177377.html
 
 ### 9. <span id="9">消息队列(Kafka)</span>
+9.1 MQ 的作用
+- 异步、解耦、削峰
+- 场景：秒杀场景下，如何应对瞬时高流量并发请求？
+  - 引入消息中间件(如 kafka)，梳理业务流程，将耗时的处理环节，由同步处理调整为异步处理；
+  - 服务器扩容：增加部署的服务器数量；
+  - 增加缓存：提升查询性能；
+
+9.2 Kafka 为什么快？
+- Partition 顺序读写，充分利用磁盘特性；
+- Producer 生产的数据持久化到 Broker，采用 mmap(Memory Mapped Files) 文件映射，实现顺序的快速写入，mmap 将磁盘文件映射到内存，用户通过修改内存就能修改磁盘文件；
+- Consumer 从 Broker 读取数据，采用 `sendfile`，将磁盘文件读到 OS 内核缓冲区后，直接转到 socket buffer 进行网络发送；
+- Broker 性能优化：日志记录批处理、批量压缩等；
+- Java NIO 对文件映射的支持：
+  - 通过调用 `FileChannel.map()` 取得 `MappedByteBuffer`，`MappedByteBuffer` 可以用来实现内存文件映射；
+  - 通过 `FileChannel` 的 `transferTo`、`transferFrom` 实现零拷贝；
+
+9.3 Kafka 数据丢失问题
+- 生产者数据不丢失：
+  - `ack=0`：producer 不等待 broker 同步完成的确认，继续发送下一条消息；
+  - `ack=1`(默认)：producer 要等到 leader 成功收到数据并得到确认后，才发送下一条消息；
+  - `ack=-1`：等待所有 follower 收到消息并得到确认，才发送下一条数据；
+- 消费者数据不丢失：取消自动提交，变为手动提交；
+- broker 消息不丢失：每个 broker 中的 partition 设置副本数至少为 3 个；
+- 新增消息发送表：
+  - 当生产者发送消息之前，会往该表中写入一条数据，status 标记为待确认；如果消费者读去消息后，消费成功，则调用生产者的 API 更新 status 为已确认；
+  - 新增定时 job，每隔一段时间检查一次消息发送表，若 5 min 后还有状态是待确认的消息，则认为该消息已经丢失了，需要重新发送消息；
+
+![消息发送表](./images/消息发送表.png)
+
+9.4 消息的顺序问题
+- Kafka 同一个 partition 中可以保证顺序，但不同的 partition 无法保证顺序；
+
+9.5 重复消息(程序的幂等设计)
+- 数据库增加防重字段，即唯一索引，在插入重复数据时，会抛出 `DuplicateKeyException`；先查询 Redis 缓存，若存在，说明已经处理过了，直接丢掉；若不存在，再执行插入数据库的操作；
+
+9.6 数据一致性
+- 为了性能考虑，使用 MQ + 重试表来保证数据的最终一致性；
+- 若消费者处理失败，则写入到重试表，定时任务进行重试，并限制重试次数，最大为 5 次；
 
 ### 10. <span id="10">Dubbo</span>
+- SPI(Service Provider Interface)是一种服务发现机制，本质是将接口实现类的全限定名配置在文件中，并由服务加载器读取配置文件，加载实现类。这样可以在运行时，动态为接口替换实现类；
 
-// TODO: SPI 机制
+10.1 Java 原生 SPI
+- 缺点：
+  - 使用一次，就需要一次性实例化所有实现类，没有缓存功能；
+  - 获取指定实现类，需要遍历所有实现类，逐个比对；
 
+10.2 Dubbo 的 SPI
+- Dubbo 采用“微内核 + 插件”的方式，实现了**对扩展开放，对修改关闭**；
+- Dubbo 几乎所有的功能组件都是基于**拓展机制(SPI)**实现的，其有点：
+  - 通过O(1)的时间复杂度来获取指定的实例对象；
+  - 增加缓存功能，每次获取的为同一个对象；
+  - 基于 Dubbo 的 SPI 加载机制，让整个框架的接口与具体实现完全解耦；
 
 ### 11. <span id="11">设计模式</span>
-- 单例模式示例
+11.1 单例模式
 
 <details>
 <summary>单例模式</summary>
 
 ```java
-// TODO: 懒汉、饿汉、双重检查锁
+// 懒汉式：使用时，才加载
+public class Singleton {
+  private static Singleton instance;
+
+  private Singleton(){}
+
+  public static synchronized Singleton getInstance() {
+    if (null != instance) {
+      return instance;
+    }
+    instance = new Singleton();
+    return instance;
+  }
+}
+
+// 饿汉式：提前加载
+public class Singleton {
+  private static Singleton instance = new Singleton();
+  
+  private Singleton(){}
+
+  public static Singleton getInstance() {
+    return instance;
+  }
+}
+
+// 双重锁检查机制
+public class Singleton {
+  private static volatile Singleton instance;
+
+  private Singleton(){}
+
+  public static Singleton getInstance() {
+    if (null != instance) {
+      return instance;
+    }
+    synchronized(Singleton.class) {
+      if (null == instance) {
+        instance = new Singleton(); // 这里可能会存在重排序
+      }
+    }
+    return instance;
+  }
+}
+
+// 创建一个对象，可以分解为如下的三行伪代码
+memory = allocate();  // 1，分配对象的内存空间
+ctorInstance(memory); // 2，初始化对象
+instance = memory;    // 3，设置 instance 指向刚分配的内存地址
+
+// 2 和 3 可能发生重排序，有可能会访问到未被初始化的对象，抛出 NullPointerException
+```
+</details>
+
+![重排序](./images/重排序.webp)
+
+- 策略模式
+  - 用于解耦策略的定义、创建、使用；
+  - 多种营销策略：直减、满减、折扣、N 元购；
+
+<details>
+<summary>策略模式</summary>
+
+```java
+// 策略的定义
+public interface DiscountStrategy {
+  double calDiscount(Order order);
+}
+
+// 具体的策略实现类：普通订单、团购订单、促销订单
+// 省略 NormalDiscountStrategy、GrouponDiscountStrategy、PromotionDiscountStrategy
+
+// 策略的创建
+public class DiscountStrategyFactory {
+  private static final Map<OrderType, DiscountStrategy> strategies = new HashMap<>();
+
+  static {
+    strategies.put(OrderType.NORMAL, new NormalDiscountStrategy());
+    strategies.put(OrderType.GROUPON, new NormalDiscountStrategy());
+    strategies.put(OrderType.PROMOTION, new NormalDiscountStrategy());
+  }
+
+  public static DiscountStrategy getDiscountStrategy(OrderType type) {
+    return strategies.get(type);
+  }
+}
+
+// 策略的使用
+public class OrderService {
+  public double discount(Order order) {
+    OrderType type = order.getType();
+    DiscountStrategy discountStrategy = DiscountStrategyFactory.getDiscountStrategy();
+    return discountStrategy.calDiscount(order);
+  }
+}
+```
+</details>
+
+- 责任链模式
+  - 多个处理器(Handler)依次处理同一个请求；
+
+<details>
+<summary>责任链模式</summary>
+
+```java
+// 定义抽象父类
+public abstract class Handler {
+  protected Handler successor = null;
+
+  public void setSuccessor(Handler successor) {
+    this.successor = successor;
+  }
+
+  public final void handle() {
+    boolean handled = doHandle();
+    if (successor != null && !handled) {
+      successor.handle();
+    }
+  }
+
+  protected abstract boolean doHandle();
+}
+
+// 具体的处理器类
+public class HandlerA extends Handler {
+  @Override
+  protected boolean doHandle() {
+    boolean handled = false;
+    // ... 具体业务逻辑
+    return handled;
+  }
+}
+
+public class HandlerB extends Handler {
+  @Override
+  protected boolean doHandle() {
+    boolean handled = false;
+    // ... 具体业务逻辑
+    return handled;
+  }
+}
+
+// HandlerChain
+public class HandlerChain {
+  private Handler head = null;
+  private Handler tail = null;
+
+  public void addHandler(Handler handler) {
+    handler.setSuccessor(null);
+
+    if (head == null) {
+      head = handler;
+      tail = handler;
+      return;
+    }
+
+    tail.setSuccessor(handler);
+    tail = handler;
+  }
+
+  public void handle() {
+    if (head != null) {
+      head.handle();
+    }
+  }
+}
+
+// 使用举例
+public class Application {
+  public static void main(String[] args) {
+    HandlerChain chain = new HandlerChain();
+    chain.addHandler(new HandlerA());
+    chain.addHandler(new HandlerB());
+    chain.handle();
+  }
+}
 ```
 </details>
 
 ### 12. <span id="12">算法</span>
-- [leetcode 第一题解法](https://www.bilibili.com/video/BV1Hy4y1B78T?p=4)
+- 二分查找时间复杂度：`O(logN)`；
+- 快排的平均时间复杂度和最优时间复杂度：`O(N * logN)`，最差时间复杂度：`O(N^2)`；
+- 求数组 a[] 和 b[] 的交集，先遍历 a[]，存 HashMap，然后判断是否存在；
+- 用栈实现队列：使用 2 个栈
+  - 栈：先进后出，队列：FIFO；
 
+<details>
+<summary>用栈实现队列</summary>
 
+```java
+    Stack<Integer> input = new Stack<>();
+    Stack<Integer> output = new Stack<>();
+
+    public MyQueue() {}
+
+    public void push(int x) {
+        input.push(x);
+    }
+
+    public int pop() {
+        peek();
+        return output.pop();
+    }
+
+    public int peek() {
+        if (output.empty()) {
+            while (!input.empty()) {
+                output.push(input.pop());
+            }
+        }
+        return output.peek();
+    }
+
+    public boolean empty() {
+        return input.empty() && output.empty();
+    }
+```
+</details>
+
+- 数组中第 K 大的数字
+
+<details>
+<summary>数组中第 K 大的数字</summary>
+
+```java
+  public static int findKthLargest(int[] nums, int k) {
+        return quickSelect(nums, 0, nums.length - 1, k);
+    }
+
+  private static int quickSelect(int[] nums, int low, int high, int k) {
+      int pivot = low;
+
+      // use quick sort's idea
+      // put nums that are <= pivot to the left
+      // put nums that are > pivot to the right
+      for (int j = low; j < high; j++) {
+          if (nums[j] <= nums[high]) {
+              swap(nums, pivot++, j);
+          }
+      }
+      swap(nums, pivot, high);
+
+      // count the nums that are > pivot from high
+      int count = high - pivot + 1;
+      // pivot is the one
+      if (count == k) {
+          return nums[pivot];
+      }
+      if (count > k) {
+          return quickSelect(nums, pivot + 1, high, k);
+      }
+      return quickSelect(nums, low, pivot - 1, k - count);
+  }
+
+  private static void swap(int[] nums, int a, int b) {
+      int temp = nums[a];
+      nums[a] = nums[b];
+      nums[b] = temp;
+  }
+```
+</details>
+
+- leetcode 第一题
+  - 给定一个整数数组 nums 和一个目标值 target，请在该数组中找出和为目标值的两个整数，并返回他们的数组下标
+
+<details>
+<summary>代码</summary>
+
+```java
+public static int[] twoSum(int[] nums, int target) {
+  Map<Integer, Integer> map = new HashMap<>();
+
+  for (int i = 0; i < nums.length; i++) {
+    int partnerNum = target - nums[i];
+    if (map.containsKey(parterNum)) {
+      return new int[]{map.get(partnerNum), i};
+    }
+    map.put(nums[i], i);
+  }
+  return null;
+}
+```
+</details>
+
+- 100 G文件出现次数最多的 100 个 IP
+  - 先 `%1000`，将 IP 分到 1000 个小文件中；
+  - 对每个小文件中的 ip 进行 HashMap 计数统计；
+  - 归并或最小堆，依次处理每个小文件中的 Top 100,得到最后结果；
 
 ### 13. <span id="13">领域驱动设计(DDD)</span>
 #### 13.1 贫血模型和充血模型
@@ -1009,4 +1395,89 @@ es：
   - 读写分离
 
 ### 14. <span id="14">系统设计相关</span>
+14.1 Redis 实现延迟队列
+- 延迟队列使用场景：
+  - 保证抽奖活动准时开启和关闭，提前 5 分钟把活动扫描到缓存中，然后使用延迟队列来处理；
+  - 中奖的优惠券或立减卡快过期时，提醒用户尽快消费；
+- 基于 Redis 的延迟队列
 
+![超时任务获取](./images/超时任务获取.png)
+
+![redis存储设计](./images/redis存储设计.png)
+
+a. 将定时任务存储到任务库，定时扫描任务库，即扫描开始时间小于 5min 的任务；
+b. 为了支持大量消息的堆积，需要把消息分散存储到很多槽中。在消息存储时，采用对指定数据或者消息体哈希进行与运算得到槽位置；
+c. StoreQueue 结构采用 zSet，SlotKey 设计为`#{topic}_#{index}`，Redis 的 zSet 中的数据按照分数排序，实现定时消息的关键就在于如何利用分数、如何添加消息到 zSet、如何从 zSet 中弹出消息。定时消息将时间戳作为分数，消费时每次弹出分数大于当前时间戳的一个消息；
+d. PrepareQueue：为了保障每条消息至少消费一次，消费者不是直接 pop 有序集合中的元素，而是将元素从 StoreQueue 移动到 PrepareQueue 并返回消息给消费者，等消费成功后再从 PrepareQueue 中删除，或者消费失败后从 PrepareQueue 重新移动到 StoreQueue，以二阶段消费的方式进行处理；
+  - PrepareQueue 的 SlotKey 设计为 `prepare_#{topic}_#{index}`，以**秒级时间戳*1000 + 重试次数**作为分数；
+
+14.2 秒杀系统设计
+- 特点：瞬时高并发，一般在秒杀时间点前几分钟，用户并发量才真正突增；
+- 方案：
+  - 页面静态化，活动页面大多数内容是固定的，如活动名称、描述、活动图片，减少不必要的服务端请求；
+  - CDN(Content Delivery Network)，即内容分发网络，使用户就近获取所需内容，降低网络拥塞，提高用户访问响应速度和命中率；
+  - 活动开始之前，秒杀按钮置灰，不可点击。只有到了秒杀时间点，秒杀按钮才会自动点亮，变成可点击的；
+  - 秒杀活动，属于大量用户抢少量商品，只有极少部分用户能够抢成功，典型**读多写少**场景，从 Redis 缓存查询库存；
+    - 缓存问题：缓存雪崩、缓存击穿、缓存穿透；
+    - 使用 Redis 分布式锁，进行库存扣减；
+  - 梳理业务流程，使用 MQ，异步处理次要流程；
+    - MQ 消息丢失：消息发送表 + MQ 任务补偿；
+    - MQ 消息重复消费：redis 缓存 + 唯一索引；
+  - 对非法请求限流：
+    - 限流方式：
+      - 基于 Nginx 限流
+      - 基于 Redis 限流
+    - 限流内容：
+      - 对同一用户限流；
+      - 对同一 IP 限流；
+      - 对接口限流；
+      - 增加验证码；
+      - 提高业务门槛，如只有等级到达 3 级以上的用户，才有资格参与秒杀活动；
+
+14.3 抽奖助手
+- 领域建模过程：
+  - 通过事件风暴来划分限界上下文和领域，以及上下文之间关系；
+  - 进一步分析每个上下文内部，识别出哪些是实体，哪些是值对象：
+    - 实体：拥有唯一标识，重要的不是其属性，而是其延续性和标识，如：客户基础信息、活动信息；
+    - 值对象：通过对象属性值来识别对象，它将多个相关属性组合为一个概念整体，如地址、抽奖规则；
+  - 对实体、值对象进行关联和聚合，划分出聚合的范围和聚合根；
+  - 为聚合根设计存储，并思考实体、值对象的创建方式；
+  - 在工程中实践领域模型，并在实践中检验模型的合理性，倒推模型不足的地方并重构；
+  - 抽奖系统的领域划分，最初来自 PRD 流程的拆解设计，划分出界限关系和所属问题域空间；拆分出：活动管理、抽奖策略、规则引擎、奖品发放等领域服务；
+  - 活动管理聚合根：
+    - 活动信息的查询，活动的上线、下线；
+    - 活动的抽奖策略、奖品配置管理；
+    - 活动库存的扣减、活动奖品的数量管理(返回被抽完的奖品)；
+- 领域细分为不同的子域，子域根据其自身重要性和功能属性，划分为：核心域、支撑域、通用域：
+  - 核心域：活动管理(发布部署、活动状态、参与活动)；
+  - 通用域：规则引擎、分布式 ID 生成；
+  - 支撑域：奖品发放；
+
+14.3.1 参数配置
+- QPS：每秒能够响应的查询次数；
+- TPS：每秒处理的事务数，一个事务是指一个客户端向服务器发送请求然后服务器做出响应的过程；
+- RT：平均响应时间；
+- 并发数：系统能同时处理的请求/事务数量；
+  - QPS = 并发数/RT;
+- 关于流量评估的场景(28法则)
+  - 假如系统有 300 万用户，那么每天来点击页面的占比 20%，也就是 60 万用户访问；
+  - 假设平均每个用户点击 50 次，那么总共有 3000 万的PV；
+  - 一天 24 个小时，平均活跃时间段算在 5 个小时内(24 * 20%)，那么 5 个小时预计有 2400 万点击(3000 * 80%)，也就是平均每秒 1333 个请求；
+  - 1333 是一个均值，按照电商类峰值的话，一般是 3~4 倍均值量，也就是 5 个小时每秒 5000 个请求(QPS = 5000)；
+  - 机器配置为 4 核 8G，接口响应时间大约为 200~300ms，每秒可以扛住 300~500 个请求；
+  - TP99 为 110 ms，是不是接口理解为接口响应时间为 110ms；
+  - 并发数 = QPS/RT，即 5000QPS * 120/1000 = 600 并发，600/150=4 台机器；
+
+// TODO: 
+  - 数据库表
+  - 活动流程图
+  - 故障处理
+  - 奖品内容
+  - Drools
+
+
+
+14.4 线上事故
+- 事故现象：线上监控突然报警，CPU 占用高，拖垮整个服务，用户看到可以参与抽奖，但一点击抽奖，页面异常。增加挡板，活动紧急下线；
+- 事故原因：抽奖助手的分布式锁，最开始是基于一个活动号 ID 进行锁定，秒杀时锁定这个 ID，用户抽完奖后进行释放；所有的用户都抢这一个 key，其中有一个用户在业务逻辑处理过程中发生异常，释放锁失败；
+- 优化：独占竞态锁调整为分段静态锁，将**活动 ID + 库存编号**作为动态锁标识，所有进来的用户抢的是自增 key，锁的颗粒度小，某个用户发生异常，不影响其他人；
