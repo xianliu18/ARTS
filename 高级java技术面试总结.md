@@ -76,7 +76,7 @@
 
 2.4 GC 算法
 - 标记-清除算法(Mark-Sweep)：会产生大量不连续的内存碎片；
-- 标记-复制算法(Coping)：每次是对整个半区进行内存回收，缺点：可用内存缩小到原来的一半；
+- 标记-复制算法(Coping)：每次是对整个半区进行内存回收，缺点：可用内存缩小到原来的一半，浪费一般的堆内存；
 - 标记-压缩算法(Mark-Compact)：能够解决内存碎片化问题，但压缩算法的性能开销也不小；
 
 2.5 垃圾回收器：
@@ -181,8 +181,10 @@ public static void main(String[] var0) {
     Iterator var2 = var1.iterator();
 
     while(var2.hasNext()) {
+        // 此处调用 Iterator 中的 next 方法，会校验 modCount != expectedModCount
         String var3 = (String)var2.next();
         if ("b".equals(var3)) {
+            // 此处调用 list 的 remove 方法，会修改 modCount
             var1.remove(var3);
         }
     }
@@ -332,7 +334,7 @@ static class Entry extends WeakReference<ThreadLocal<?>> {
 
 - 锁的执行：`EntryList`、`WaitSet`；
 
-![锁的执行](./images/锁的执行.image)
+![锁的执行](./images/锁的执行.png)
 
 - 同步方法：`ACC_SYNCHRONIZED` 同步标识；
 - 同步代码块：`monitorenter`、`monitorexist` 两条指令；
@@ -354,8 +356,8 @@ static class Entry extends WeakReference<ThreadLocal<?>> {
 - `volatile int state`：代表共享资源的状态，`state = 1` 代表当前对象锁已被占有，其他线程来加锁会失败；加锁失败的线程会被放入一个 FIFO 等待队列中，`UNSAFE.park()`方法阻塞当前线程；
 - 通过 CAS 来保证 `state` 并发修改的安全性；
 - `thread`：当前占有锁的线程；
-- 锁的模式：独占锁、共享锁；
-- `waitStatus`：CANCELLED、SIGNAL、CNODITION、PROPAGATE、0(默认值)；
+- 锁的模式：独占锁(EXCLUSIVE)、共享锁(SHARED)；
+- `waitStatus`：CANCELLED、SIGNAL、CONDITION、PROPAGATE、0(默认值)；
 
 4.11 `CountDownLatch` 和 `CyclicBarrier`
 - `CountDownLatch` 可以当作一个计数器来使用，比如主线程等待所有子线程都执行过某个时间点后，才能继续执行；
@@ -364,6 +366,7 @@ static class Entry extends WeakReference<ThreadLocal<?>> {
   - `CyclicBarrier` 利用 `ReentrantLock` 中的 `Condition` 来阻塞和通知线程；等到线程数增长到指定数量后，调用 `Condition.signalAll()` 唤醒所有线程；
 
 4.12 锁的分类
+
 a. 乐观锁与悲观锁
 - 乐观锁认为自己在使用数据时，不会有别的线程修改数据，所以不会加锁，使用处理器提供的 CAS 指令来实现；
   - CAS 算法涉及到三个操作数：
@@ -437,7 +440,7 @@ private final class Worker extends AbstractQueuedSynchronizer implements Runnabl
 
 5.1.1 拦截器和过滤器
 - 拦截器：`org.aopalliance.intercept.Interceptor`，过滤器：`javax.servlet.Filter`；
-- 实现原理不同：拦截器是基于 java 的反射机制，而过滤器是基于函数回调；
+- 实现原理不同：拦截器是基于 java 的反射（动态代理）机制，而过滤器是基于函数回调；
 - 拦截器不依赖于 servlet 容器，过滤器则依赖 servlet 容器；
 - 拦截器只能对 action 请求起作用，而过滤器则可以对几乎所有的请求起作用；
 - 在 action 的生命周期中，拦截器可以多次被调用，而过滤器只能在容器初始化时被调用一次；
