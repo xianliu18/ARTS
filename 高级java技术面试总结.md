@@ -71,12 +71,12 @@
 2.3 Java 中的引用
 - 强引用（Strong Reference）：如果一个对象 GC Roots 可达，强引用不会被回收；
 - 软引用（Soft Reference）：当 JVM 认为内存不足时，会清理软引用指向的对象；通常用来实现内存敏感的缓存；
-- 弱引用（Weak Reference）：无论内存是否充足，都会回收跟弱引用关联的对象；
+- 弱引用（Weak Reference）：无论内存是否充足，只要发生 GC，都会回收跟弱引用关联的对象；
 - 虚引用（Phantom Reference）：虚引用不会对对象生存时间构成影响，只是为了在这个对象被收集器回收时收到一个系统通知；
 
 2.4 GC 算法
 - 标记-清除算法(Mark-Sweep)：会产生大量不连续的内存碎片；
-- 标记-复制算法(Coping)：每次是对整个半区进行内存回收，缺点：可用内存缩小到原来的一半，浪费一般的堆内存；
+- 标记-复制算法(Coping)：每次是对整个半区进行内存回收，缺点：可用内存缩小到原来的一半，浪费一半的堆内存；
 - 标记-压缩算法(Mark-Compact)：能够解决内存碎片化问题，但压缩算法的性能开销也不小；
 
 2.5 垃圾回收器：
@@ -400,6 +400,7 @@ e. 自旋锁
 - 当前线程获取锁时，如果发现锁已经被其他线程占有，并不会马上阻塞自己，在不放弃 CPU 的情况下，多次尝试；自旋等待虽然避免了线程切换的开销，但是以浪费 CPU 为代价；
 
 4.13 线程池
+
 4.13.1 `Executors` 创建线程池的弊端：
 - `FixedThreadPool` 和 `SingleThreadPool`：允许请求队列长度为 `Integer.MAX_VALUE`，可能会堆积大量请求，造成 OOM；
 - `CachedThreadPool` 和 `ScheduledThreadPool`：允许创建的线程数量为 `Integer.MAX_VALUE`，可能会创建大量的线程，造成 OOM；
@@ -471,7 +472,7 @@ private final class Worker extends AbstractQueuedSynchronizer implements Runnabl
 5.6 依赖注入(Dependency Injection, DI)
 - 依赖注入，常见 3 种方式：
   - 属性注入
-  - Setter 注入
+  - Setter 方法注入
   - 构造方法注入
 
 - `@Autowired` 和 `@Resource` 用于维护 bean 之间的依赖关系；
@@ -482,7 +483,7 @@ private final class Worker extends AbstractQueuedSynchronizer implements Runnabl
     - `@Autowired` 是 spring 提供的，`@Resource` 是 J2EE 提供的；
     - `@Autowired` 注入的对象需要在 IOC 容器种存在，否则需要加上属性 `required = false`，表示忽略当前要注入的 bean；
     - 注入方式：
-      - `@Autowired` 默认是 byType 方式注入，可以配合 `@Qualifier` 注解来显示指定 name 的值；
+      - `@Autowired` 默认是 byType 方式注入，可以配合 `@Qualifier` 注解来显式指定 name 的值；
       - `@Resource` 默认是 byName 方式注入，如果没有匹配，则通过 byType 注入；`@Resource` 还有两个重要的属性：name 和 type，用来显示指定 byName 和 byType 方式注入；
 
 5.7 Bean 生命周期
@@ -519,7 +520,7 @@ private final class Worker extends AbstractQueuedSynchronizer implements Runnabl
     - spring 无法解决此类依赖，因为创建 bean 需要使用构造器，当构造函数出现循环依赖时，我们无法创建“不完整”的 bean 实例；
     - 会抛出 `BeanCurrentlyInCreationException`；
   - 赋值属性循环依赖：
-    - spring 只支持 bean 在**单例模式（singleton)**下的循环依赖；其他模式下的循环依赖，会抛出 `BeanCurrentlyInCreationException`；
+    - spring 只支持 bean 在 **单例模式（singleton)** 下的循环依赖；其他模式下的循环依赖，会抛出 `BeanCurrentlyInCreationException`；
 - 解决循环依赖的方式：提前暴露创建中的 bean 实例；
   - 一级缓存 `singletonObjects`：存储所有创建完成的单例 bean；
   - 二级缓存 `earlySingletonObjects`：完成实例化，但未进行属性注入及初始化的对象，即提前暴露的单例缓存，`ObjectFactory` 返回的 `bean`；
@@ -559,7 +560,7 @@ private final class Worker extends AbstractQueuedSynchronizer implements Runnabl
 5.8 SpringBoot 自动装配原理
 - SpringBoot 启动时，会执行 `SpringApplication.run()`，`run()` 方法会刷新容器，刷新容器时，会解析启动类上的注解 `@SpringBootApplication`，这是个复合注解，其中有三个比较重要的注解 `@SpringBootConfiguration`、`@ComponentScan`、`@EnableAutoConfiguration`：
   - `@SpringBootConfiguration` 底层是 `@Configuration` 注解，通过 `@Configuration` 和 `@Bean` 结合，将 Bean 注册到 Spring IOC 容器；
-  - `@ComponentScan`  扫描注解，默认是扫描当前类下的 package，将 `@Component`、`@Controller`、`@Service`、`@Repository` 等注解加载到 IOC 容器中；
+  - `@ComponentScan`  扫描注解，默认是扫描当前类下的 package，将 `@Component`、`@Controller`、`@Service`、`@Repository` 等注解的类加载到 IOC 容器中；
   - `@EnableAutoConfiguration` 开启自动配置，是一个复合注解；
     - `@AutoConfigurationPackage`：自动配置包；
     - `@Import(AutoConfigurationImportSelector.class)`：会扫描所有 jar 路径下的 `META-INF/spring.factories`，将其文件包装成 `Properties` 对象，从 `Properties` 对象获取 key 值为 `EnableAutoConfiguration` 所对应的数据，加载到 IOC 容器，根据配置类上的条件注解 `@ConditionalOnXXX` 来判断是否将这些配置类在容器中进行实例化；
@@ -576,7 +577,7 @@ private final class Worker extends AbstractQueuedSynchronizer implements Runnabl
     - 调用 `findLoadedClass(name)` 检查类是否已经加载过；若没有，则继续；
     - 若 `parent` 属性值不为 null，根据双亲委派模型，调用 `parent.loadClass(name, false)`，优先从 parent 中执行 loadClass；
     - 若 `parent` 属性值为 null，则调用 `findBootStrapClassOrNull(name)` 判断是否在 `BootStrapClassLoader` 中加载过；
-    - 如果类仍未找到，则执行 `findClass` 查找类，`findClass` 有自定义的 `ClassLoader` 实现；
+    - 如果类仍未找到，则执行 `findClass` 查找类，`findClass` 由自定义的 `ClassLoader` 实现；
 - 自定义 ClassLoader，是通过继承 `java.lang.ClassLoader` 抽象类，重写以下方法：
   - 如果希望**遵循**双亲委派模型，重写 `findClass()` 方法；
   - 如果希望**打破**双亲委派模型，重写 `loadClass()` 方法；
@@ -684,7 +685,7 @@ delete from t /*comment*/  where a>=4 and t_modified<='2018-11-10' limit 1;
 ![statement格式 binlog 示例](./images/statement格式binlog示例.png)
 
 - 说明：
-  - 第二行是一个 BEGIN，跟第四行的 commit 对应，表示中间是一个事务；
+  - 第二行是一个 BEGIN，跟第四行的 COMMIT 对应，表示中间是一个事务；
   - 第三行就是真实执行的语句。`use lottery` 命令，是 MySQL 根据当前要操作的表所在的数据库，自行添加的。这样做可以保证日志传到备库去执行的时候，不论当前的工作线程在哪个库里，都能够正确的执行；
   - 最后一行是一个 COMMIT。`xid=7`，事务 id；
 - 存在问题：
@@ -718,7 +719,7 @@ delete from t /*comment*/  where a>=4 and t_modified<='2018-11-10' limit 1;
   - 现在越来越多的场景要求把 binlog 的格式设置为 **row**；好处之一：恢复数据；
   - 分别从`delete`、`insert`和`update`这三种 SQL 语句，来看看数据恢复问题：
   - 在 row 格式下，binlog 会记录被删掉的整行信息。所以，执行完 delete 语句后，发现删错数据了，可以把 binlog 中记录的 delete 语句转成 insert，把被错删的数据插入回去就可以恢复了；
-  - row 格式下，binlog 会记录 insert 语句的所有字段信息；insert 错了，可以直接把 insert 语句转成 delete 语句，删除掉被误差入的数据即可；
+  - row 格式下，binlog 会记录 insert 语句的所有字段信息；insert 错了，可以直接把 insert 语句转成 delete 语句，删除掉被误插入的数据即可；
   - 如果执行的是 update 语句，binlog 里面会记录**修改前整行的数据和修改后的整行数据**。所以，如果误执行了 update 语句，只需要把这个 event 前后的两行信息对调一下，再去数据库里面执行，就能恢复这个更新操作了；
 
 6.7 redolog 和 binlog 区别
@@ -741,9 +742,10 @@ delete from t /*comment*/  where a>=4 and t_modified<='2018-11-10' limit 1;
       - 否则，回滚事务；
 
 6.9 索引
+
 6.9.1 B+ 树和 B 树的优势
 - B+ 树的所有数据都在叶子节点，非叶子节点存储的是指向其他节点的指针；而 B 树的非叶子节点也保存具体的数据；同样大小的情况下，B+ 树可以存储更多的关键字，B+ 树比 B 树更加矮胖，IO 次数少；
-- B+ 树叶子结点使用双向链表前后关联，更加方便范围查询，即由于 B+ 树所有的数据都在叶子节点，并且节点之间有指针连接，在查找大于（或小于）某个关键字时，只需要找到该关键字，然后沿着链表遍历即可；
+- B+ 树叶子结点使用双向链表前后关联，更加方便范围查询，即由于 B+ 树所有的数据都在叶子节点，并且节点之间由指针连接，在查找大于（或小于）某个关键字时，只需要找到该关键字，然后沿着链表遍历即可；
 - B+ 树更有利于对数据扫描，避免 B 树的回溯扫描；
 
 6.9.2 索引设计原则
@@ -790,6 +792,7 @@ delete from t /*comment*/  where a>=4 and t_modified<='2018-11-10' limit 1;
   - `select * from single_info where id >= (select id from single_info limit 10000000, 1) limit 100;`
 
 6.10 MySQL 事务
+
 6.10.1 事务隔离级别
 - ACID：原子性(Atomicity)、一致性(Consistency)、隔离性(Isolation)、持久性(Durability)；
 
@@ -947,7 +950,7 @@ select t1.id from tb_data t1 where t1 where EXISTS (select * from tb_task t2 whe
   - 全局唯一；
   - 趋势递增，MySQL 的 InnoDB 是聚集索引，使用的是 B+ 树结构来存储数据，应尽量使用有序的主键保证数据写入；
   - 含时间戳，可以快速了解分布式 ID 生成的时间，定位问题；
-  - 高可用低延时：ID 生成的速度要快，避免成为系统瓶颈；
+  - 高可用低延迟：ID 生成的速度要快，避免成为系统瓶颈；
 - UUID 不能生成顺序、递增的数据，而且长；
 - 数据库集群模式：起始值和自增步长，集群多的情况，扩容比较麻烦；
 - 雪花算法，生成的是 Long 型 ID，一个 Long 型占 64 bit：
