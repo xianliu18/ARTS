@@ -908,7 +908,23 @@ select t1.id from tb_data t1 where t1 where EXISTS (select * from tb_task t2 whe
 7.4 Redis 分布式锁
 - `set NX key <value>`：占锁成功，若业务代码出现异常或服务器宕机，没有执行删除锁的逻辑，会造成死锁，因此锁需要设置过期时间；
 - `set key <value> PX <过期时间> NX`：占锁 + 过期时间，为保证原子性，可以使用 Lua 脚本；过期时间设置为 110ms；
-  - `"if redis.call('set', KEYS[1], ARGV[1], 'NX', 'EX', ARGV[2]) then return 1 else return 0 end"`
+  - `EX`：秒；
+  - `PX`：毫秒；
+
+```java
+/**
+ * 分布式锁
+ *
+ * 如果超时未解锁，视为加锁线程死亡，其他线程可夺取锁
+ */
+public boolean setNx(String key, Long lockExpireMils) {
+    return (boolean)redisTemplate.execute((RedisCallback)connection -> {
+        // 获取锁，并设置过期时间
+        return connection.setNX(key.getBytes(), String.valueOf(System.currentTimeMillis() + lockExpireMils + 1).getBytes());
+    });
+}
+```
+
 - 生成随机唯一 id，给锁加上唯一值；
   - 释放锁需要使用 Lua 脚本，包含两步：查询比较锁的值 + 删除锁；
 - 阻塞获取锁(50ms)
@@ -916,6 +932,7 @@ select t1.id from tb_data t1 where t1 where EXISTS (select * from tb_task t2 whe
 - 抽奖活动中的分布式锁：
   - 个人用户把参与活动的信息，写入到用户表；
   - 加锁是为了提高可靠性，通常 incr 不会出现并发问题，拿到相同的值。但实际集群部署下，临界情况和库存补充时，也可能会出现相同值的情况；
+  - 早期在内部测试时，redis 是集群服务，incr 压测十万次，最后的结果不是 10 万总是会差几个，和运维了解到每次调用如果他们执行失败内部会有重试策略，所以可能导致不一定是 10 万次，所以加了 setnx 锁，以保证不超卖；
 
 7.4.1 Redisson
 ![redisson锁原理](./images/redisson锁原理.jpeg)
