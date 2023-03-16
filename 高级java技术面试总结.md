@@ -927,6 +927,19 @@ public boolean setNx(String key, Long lockExpireMils) {
 
 - 生成随机唯一 id，给锁加上唯一值；
   - 释放锁需要使用 Lua 脚本，包含两步：查询比较锁的值 + 删除锁；
+
+```java
+/**
+ * 获取不阻塞的锁lua脚本
+ */
+private static final String NO_BLOCK_LOCK_SCRIPT = "if redis.call('set', KEYS[1], ARGV[1], 'NX', 'EX', ARGV[2]) then return 1 else return 0 end";
+
+/**
+ * 释放锁lua脚本
+ */
+private static final String RELEASE_LOCK_SCRIPT = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+```
+
 - 阻塞获取锁(50ms)
   - 假设 1 万个请求同时去竞争一把锁，可能只有一个请求是成功的，其余 9999 个请求都会失败；
 - 抽奖活动中的分布式锁：
