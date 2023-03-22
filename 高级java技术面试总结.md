@@ -137,7 +137,7 @@
 3.2 ArrayList 和 LinkedList
 - ArrayList 基于动态数组，LinkedList 基于链表；
 - 对于随机 index 访问，ArrayList 优于 LinkedList，ArrayList 可以直接通过数组下标找到元素；
-- 新增和删除元素，LinkedList 由于 ArrayList，在新增或删除元素时，ArrayList 可能需要**扩容和复制**数组，而 LikedList 只需要修改指针即可；
+- 新增和删除元素，LinkedList 优于 ArrayList，在新增或删除元素时，ArrayList 可能需要**扩容和复制**数组，而 LikedList 只需要修改指针即可；
 
 3.3 CopyOnWriteArrayList
 - 核心概念：读写分离，空间换时间；利用 CopyOnWrite（写时复制） 思想，在写时复制一份副本进行修改，修改完成后，再将新值赋给旧值；
@@ -195,6 +195,7 @@ public static void main(String[] var0) {
 3.5 HashMap
 - 数据结构：数组 + 链表 + 红黑树；
 - 扰动函数：优化散列效果，增加随机性，减少哈希碰撞；
+  - `return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);`
 - 初始化大小为 16；
 - 负载因子：0.75，当阈值容量占了 3/4 时，就需要进行扩容，减少哈希碰撞；
 - 扩容的算法：`e.hash & oldCap == 0`，判断当前节点是否需要移位，若为 0，不需要移动；若为 1，则需要移动至 (oldCap + 扩容容量)的位置；
@@ -218,7 +219,7 @@ public static void main(String[] var0) {
   - 可获取线程执行结果；
 
 <details>
-<summary>`FutureTask` 源码分析</summary>
+<summary>FutureTask 源码分析</summary>
 
 ```java
 // FutureTask 的 run() 代码仅执行一次
@@ -867,7 +868,7 @@ select t1.id from tb_data t1 where t1 where EXISTS (select * from tb_task t2 whe
 - `String`：分布式锁、存储简单的热点数据；
 - `Hash`：用户基本信息，用于抽奖的活动信息(活动的名称，开始时间，结束时间，审核状态等等)；
 - `Set`：共同好友，共同喜好，客户的兴趣标签；
-- `zSet`：文章点赞排行榜、延时队列；
+- `zSet`：文章点赞排行榜、延迟队列；
 - `List`
 - `zSet` 底层是 `ziplist` 或者 `skiplist`，`skiplist`(跳表)的优势：
   - 查找单个 key，`skiplist`和红黑树的平均时间复杂度都为`O(logN)`；
